@@ -28,6 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error happened! %v ", err)
 	}
+
 	channel := bp.Out()
 	var num int64
 	var wg sync.WaitGroup

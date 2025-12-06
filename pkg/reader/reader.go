@@ -21,9 +21,9 @@ type Reader struct {
 	sendingCounter int64
 }
 
-func NewReader(client *mongo.Client, dbName string, collectionName string, bp *backPressure.BackPressure[[]entity.User]) *Reader {
+func NewReader(collection *mongo.Collection, bp *backPressure.BackPressure[[]entity.User]) *Reader {
 	r := &Reader{
-		col: client.Database(dbName).Collection(collectionName),
+		col: collection,
 		bp:  bp,
 	}
 	return r
@@ -38,9 +38,7 @@ func (r *Reader) Read(ctx context.Context, batchSize int64) error {
 			filter["_id"] = bson.M{"$gt": lastID}
 		}
 
-		opts := options.Find().
-			SetSort(bson.M{"_id": 1}).
-			SetLimit(batchSize)
+		opts := options.Find().SetSort(bson.M{"_id": 1}).SetLimit(batchSize)
 
 		cursor, err := r.col.Find(ctx, filter, opts)
 		if err != nil {
