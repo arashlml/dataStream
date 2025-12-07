@@ -1,4 +1,4 @@
-package mongorespository
+package mongorepository
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 )
 
 func Connect(uri string) (*mongo.Client, error) {
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
@@ -29,6 +28,9 @@ func Connect(uri string) (*mongo.Client, error) {
 	log.Println("MONGO CONNECTED ✅")
 	return client, nil
 }
+
 func MakeMongoCollection(client *mongo.Client, dbName string, collectionName string) *mongo.Collection {
-	return client.Database(dbName).Collection(collectionName)
+	col := client.Database(dbName).Collection(collectionName)
+	log.Println("collection created")
+	return col
 }
