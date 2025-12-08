@@ -1,9 +1,8 @@
-// TODO: better naming for this package, syncerservice maybe?
-package service
+// TODO: better naming for this package, syncerservice maybe? | Done✅
+package syncservice
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -13,14 +12,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// TODO: redundant X interface, remove it
-type X interface {
-	IsZero() bool
-}
+// TODO: redundant X interface, remove it | Done✅
 
 type Reader interface {
-	HasNext() bool
-	Batch() []bson.M
+	HasNext(ctx context.Context) bool
+	CurrentBatch() []bson.M
 	Next(ctx context.Context) error
 }
 type Writer interface {
@@ -28,47 +24,63 @@ type Writer interface {
 }
 
 type Service struct {
-	// TODO: no need to make Reader and Writer fields public if they are not accessed outside the package
-	Reader         Reader
-	Writer         Writer
+	// TODO: no need to make Reader and Writer fields public if they are not accessed outside the package | Done ✅
+
+	reader         Reader
+	writer         Writer
 	bp             *BackPressure.BackPressure[[]bson.M]
-	batchSize      int
 	ctx            context.Context
 	cancel         context.CancelFunc
 	wg             *sync.WaitGroup
 	consumeCounter int64
 }
 
-func NewService(reader Reader, writer Writer, batchSize int, bp *BackPressure.BackPressure[[]bson.M]) *Service {
+func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bson.M]) *Service {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	s := &Service{
-		Reader:    reader,
-		Writer:    writer,
-		bp:        bp,
-		batchSize: batchSize,
-		ctx:       ctx,
-		cancel:    cancelFunc,
-		wg:        &sync.WaitGroup{},
+		reader: reader,
+		writer: writer,
+		bp:     bp,
+		ctx:    ctx,
+		cancel: cancelFunc,
+		wg:     &sync.WaitGroup{},
 	}
 
-	// TODO: batchSize is not used, either remove it or use it in the Reader (better to use it in the Reader)
-	go s.readLoop(s.ctx, s.batchSize)
+	// TODO: batchSize is not used, either remove it or use it in the Reader (better to use it in the Reader) | Done✅
+	s.wg.Add(2)
+	go s.readLoop(s.ctx)
+
 	go s.writeLoop(s.ctx)
 
 	return s
 }
 
-func (s *Service) readLoop(ctx context.Context, batchSize int) {
-	// TODO: track the read loop with the wait group and handle context cancelation properly , if not tracking, this can cause goroutine leaks (wg.Add(1), ...)
-	for s.Reader.HasNext() {
-		err := s.Reader.Next(ctx)
+func (s *Service) readLoop(ctx context.Context) {
+	// TODO: track the read loop with the wait group and handle context cancelation properly , if not tracking, this can cause goroutine leaks (wg.Add(1), ...) | Done✅
+	defer s.wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		if s.reader.HasNext(ctx) == false {
+			return
+		}
+		err := s.reader.Next(ctx)
 
 		if err != nil {
 			log.Printf("SERVICE: ERROR FOR READING --> %v \n", err)
 		}
 
-		batch := s.Reader.Batch()
-		s.bp.Add(batch)
+		batch := s.reader.CurrentBatch()
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			s.bp.Add(batch)
+		}
 	}
 }
 
@@ -88,12 +100,14 @@ func (s *Service) writeLoop(ctx context.Context) {
 			//if err != nil {
 			//	log.Printf("SERVICE: ERROR FROM BATCH WRITE --> %v \n", err)
 			//}
-		// TODO: when the context is done, the Done channel of context will be closed, so this case will be selected repeatedly, causing a busy loop, handle it properly by returning from the function
+		// TODO: when the context is done, the Done channel of context will be closed, so this case will be selected repeatedly, causing a busy loop, handle it properly by returning from the function | Done✅
 		case <-ctx.Done():
 
-			fmt.Println("SERVICE: context canceled")
+			log.Println("SERVICE: context canceled")
 
 			s.bp.Close()
+
+			return
 		}
 	}
 }

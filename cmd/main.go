@@ -18,8 +18,8 @@ func main() {
 		log.Fatalf("ERROR FROM CONNECT -> %v", err)
 	}
 	col := mongorepository.MakeMongoCollection(client, "mydb", "users")
-	it := mongoIterator.NewMongoIterator(col, 50)
+	it := mongoiterator.NewMongoIterator(col, 50)
 	bp := BackPressure.NewBackPressure[[]bson.M](10, 50, 30*time.Second)
-	_ = service.NewService(it, nil, 50, bp)
+	_ = syncservice.NewService(it, nil, 50, bp)
 	time.Sleep(1 * time.Hour)
 }
