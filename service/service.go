@@ -79,10 +79,6 @@ func (s *Service) readLoop(ctx context.Context) {
 			}
 
 			batch := s.reader.CurrentBatch()
-			select {
-			case <-ctx.Done():
-				return
-			default:
 				select {
 				case <-ctx.Done():
 					return
