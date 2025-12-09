@@ -3,7 +3,7 @@ module github.com/arashlml/mongo-reader
 go 1.25.3
 
 require (
-	github.com/arashlml/back-pressure v0.0.0-20251206081027-b01be99a6ed1 // indirect
+	github.com/arashlml/back-pressure v0.0.0-20251207144931-66c9dc32c410 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.7.0 // indirect
 	github.com/elastic/go-elasticsearch/v8 v8.19.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect

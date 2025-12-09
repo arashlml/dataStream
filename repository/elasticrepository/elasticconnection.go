@@ -1,17 +1,24 @@
 package elasticrepository
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
-func connect(uri, username, password string) (*elasticsearch.Client, error) {
+func Connect(uri, username, password string) (*elasticsearch.Client, error) {
 	cfg := elasticsearch.Config{
 		Addresses: []string{uri},
 		Username:  username,
 		Password:  password,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
 	}
 
 	es, err := elasticsearch.NewClient(cfg)
