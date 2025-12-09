@@ -17,6 +17,7 @@ type MongoIterator struct {
 	batch       []bson.M
 	lastID      primitive.ObjectID
 	nextCounter int64
+	hasNext     bool
 	cursor      *mongo.Cursor
 }
 
@@ -27,6 +28,7 @@ func NewMongoIterator(col *mongo.Collection, batchSize int64) *MongoIterator {
 	m := &MongoIterator{
 		col:       col,
 		batchSize: batchSize,
+		hasNext:   true,
 	}
 	return m
 }
@@ -37,6 +39,7 @@ func (m *MongoIterator) Next(ctx context.Context) error {
 			log.Printf("MONGO ITERATOR: ERROR CLOSING THE CURSOR --> %v \n", err)
 		}
 	}
+
 	filter := bson.M{}
 	if !m.lastID.IsZero() {
 		filter["_id"] = bson.M{"$gt": m.lastID}
@@ -65,6 +68,8 @@ func (m *MongoIterator) Next(ctx context.Context) error {
 			m.lastID = lastID
 		}
 	}
+	m.hasNext = m.batchSize == int64(len(m.batch))
+
 	atomic.AddInt64(&m.nextCounter, 1)
 
 	return nil
@@ -75,12 +80,13 @@ func (m *MongoIterator) CurrentBatch() []bson.M {
 }
 
 func (m *MongoIterator) HasNext(ctx context.Context) bool {
-	if int64(len(m.batch)) < m.batchSize && !m.lastID.IsZero() {
-		if err := m.cursor.Close(ctx); err != nil {
-			log.Printf("MONGO ITERATOR: ERROR CLOSING THE CURSOR --> %v \n", err)
-			return false
+	if !m.hasNext {
+		log.Println("ITERATOR: ITERATION IS OVER")
+		err := m.cursor.Close(ctx)
+		if err != nil {
+			log.Printf("ITERATOR: ERROR CLOSING THE CURSOR --> %v \n", err)
 		}
-		return false
+		return m.hasNext
 	}
-	return true
+	return m.hasNext
 }
