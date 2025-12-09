@@ -68,6 +68,7 @@ func (s *Service) readLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
+			start := time.Now()
 			if !s.reader.HasNext(ctx) {
 				close(s.doneChan)
 				return
@@ -77,20 +78,19 @@ func (s *Service) readLoop(ctx context.Context) {
 			if err != nil {
 				log.Printf("SERVICE: ERROR FOR READING --> %v \n", err)
 			}
-
+			elapsed := time.Since(start)
+			log.Printf("SERVICE: READING --> took %v", elapsed)
 			batch := s.reader.CurrentBatch()
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					s.producerCounter++
-					//log.Printf("SERVICE: SEND TO BACKPRESSURE COUNTER --> %v \n", s.producerCounter)
-					s.bp.Add(batch)
-				}
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				s.producerCounter++
+				//log.Printf("SERVICE: SEND TO BACKPRESSURE COUNTER --> %v \n", s.producerCounter)
+				s.bp.Add(batch)
 			}
 		}
 	}
-
 }
 
 func (s *Service) writeLoop(ctx context.Context) {
@@ -99,11 +99,13 @@ func (s *Service) writeLoop(ctx context.Context) {
 	for items := range channel {
 		atomic.AddInt64(&s.consumeCounter, 1)
 		log.Printf("SERVICE: Channel write counter %v \n", atomic.LoadInt64(&s.consumeCounter))
-		time.Sleep(1 * time.Second)
+		start := time.Now()
 		err := s.writer.BulkInsert(ctx, items)
 		if err != nil {
 			log.Printf("SERVICE: Error inserting item %v \n", err)
 		}
+		elapsed := time.Since(start)
+		log.Printf("SERVICE: Time elapsed %v \n", elapsed)
 	}
 }
 

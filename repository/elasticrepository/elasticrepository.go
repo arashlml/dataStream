@@ -48,15 +48,16 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch []bson.M) erro
 		buf.Write(docBytes)
 		buf.WriteByte('\n')
 	}
-
 	res, err := e.client.Bulk(bytes.NewReader(buf.Bytes()))
-	log.Printf("BULK INSEERT --> %v", res)
 	if err != nil {
 		log.Printf("REPOSITORY: BULK INSERT ERROR --> %v \n", err)
 		return err
 	}
 	defer res.Body.Close()
 
+	if res.IsError() {
+		return fmt.Errorf("Error bulk insert: %s", res.String())
+	}
 	var result map[string]interface{}
 	json.NewDecoder(res.Body).Decode(&result)
 
