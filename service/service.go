@@ -33,8 +33,6 @@ type Service struct {
 	wg              *sync.WaitGroup
 	consumeCounter  int64
 	producerCounter int64
-	indexName       string
-	doneChan        chan struct{}
 	logger          *slog.Logger
 }
 
@@ -49,7 +47,6 @@ func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bs
 		readCancel: readCancelFunc,
 		writeCtx:   context.Background(),
 		wg:         &sync.WaitGroup{},
-		doneChan:   make(chan struct{}),
 		logger:     logger,
 	}
 
@@ -59,12 +56,13 @@ func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bs
 
 	return s
 }
-func (s *Service) Done() <-chan struct{} {
-	return s.doneChan
+func (s *Service) Close() {
+	s.readCancel()
 }
 
 func (s *Service) readLoop(ctx context.Context) {
 	defer s.wg.Done()
+	defer s.bp.Close()
 	for {
 		select {
 		case <-ctx.Done():
@@ -73,7 +71,6 @@ func (s *Service) readLoop(ctx context.Context) {
 		default:
 			if !s.reader.HasNext(ctx) {
 				s.logger.Info("service.readLoop.done")
-				close(s.doneChan)
 				return
 			}
 			err := s.reader.Next(ctx)
@@ -109,6 +106,7 @@ func (s *Service) readLoop(ctx context.Context) {
 
 func (s *Service) writeLoop(ctx context.Context) {
 	defer s.wg.Done()
+	defer s.log()
 	channel := s.bp.Out()
 	for items := range channel {
 		if len(items) > 0 {
@@ -125,18 +123,24 @@ func (s *Service) writeLoop(ctx context.Context) {
 					"_id", lastID,
 					"consume_counter", count,
 				)
+
 				err := s.writer.BulkInsert(ctx, items)
+
 				if err != nil {
-					s.logger.Error("service.writeLoop.bulkInsertError", "error", err)
+					s.logger.Error("service.writeLoop.bulkInsertError",
+						"_id", lastID,
+						"error", err,
+					)
 				}
 			}
 		}
 	}
+	s.logger.Info("service.writeLoop.done")
 }
+func (s *Service) log() {
+	s.logger.Info("service.writeLoop.done")
 
-func (s *Service) Close() {
-	s.logger.Info("service.closing")
-	s.readCancel()
-	s.bp.Close()
+}
+func (s *Service) Wait() {
 	s.wg.Wait()
 }

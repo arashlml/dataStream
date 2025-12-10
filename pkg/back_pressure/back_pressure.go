@@ -35,7 +35,6 @@ func NewBackPressure[T any](bufferSize int64, logger *slog.Logger) *BackPressure
 
 func (b *BackPressure[T]) Add(item T) {
 
-	// ⚠️ اگر بافر پر شده
 	if int64(len(b.channel)) == b.bufferSize {
 		b.logger.Warn(
 			"backpressure.buffer.full",

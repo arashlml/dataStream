@@ -94,9 +94,6 @@ func (m *MongoIterator) Next(ctx context.Context) error {
 		}
 	}
 	m.hasNext = m.batchSize == int64(len(m.batch))
-
-	atomic.AddInt64(&m.nextCounter, 1)
-
 	return nil
 }
 
