@@ -2,12 +2,13 @@ package syncservice
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	BackPressure "github.com/arashlml/mongo-reader/pkg/back_pressure"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -34,9 +35,10 @@ type Service struct {
 	producerCounter int64
 	indexName       string
 	doneChan        chan struct{}
+	logger          *slog.Logger
 }
 
-func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bson.M], indexName string) *Service {
+func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bson.M], logger *slog.Logger) *Service {
 	readCtx, readCancelFunc := context.WithCancel(context.Background())
 
 	s := &Service{
@@ -47,8 +49,8 @@ func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bs
 		readCancel: readCancelFunc,
 		writeCtx:   context.Background(),
 		wg:         &sync.WaitGroup{},
-		indexName:  indexName,
 		doneChan:   make(chan struct{}),
+		logger:     logger,
 	}
 
 	s.wg.Add(2)
@@ -66,28 +68,40 @@ func (s *Service) readLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			s.logger.Info("service.readLoop.stopped")
 			return
 		default:
-			start := time.Now()
 			if !s.reader.HasNext(ctx) {
+				s.logger.Info("service.readLoop.done")
 				close(s.doneChan)
 				return
 			}
 			err := s.reader.Next(ctx)
-
 			if err != nil {
-				log.Printf("SERVICE: ERROR FOR READING --> %v \n", err)
+				s.logger.Error("service.readLoop.error", "error", err)
 			}
-			elapsed := time.Since(start)
-			log.Printf("SERVICE: READING --> took %v", elapsed)
-			batch := s.reader.CurrentBatch()
+			items := s.reader.CurrentBatch()
 			select {
 			case <-ctx.Done():
 				return
 			default:
-				s.producerCounter++
-				//log.Printf("SERVICE: SEND TO BACKPRESSURE COUNTER --> %v \n", s.producerCounter)
-				s.bp.Add(batch)
+				atomic.AddInt64(&s.producerCounter, 1)
+				s.bp.Add(items)
+				if len(items) > 0 {
+					doc := items[len(items)-1]
+					if lastID, ok := doc["_id"].(primitive.ObjectID); !ok {
+						s.logger.Warn(
+							"service.reader.invalid_id",
+							"_id", lastID,
+							"id_type", fmt.Sprintf("%T", lastID),
+						)
+					} else {
+						s.logger.Info("service.readLoop.channelCounter",
+							"_id", lastID,
+							"produce_counter", atomic.LoadInt64(&s.producerCounter),
+						)
+					}
+				}
 			}
 		}
 	}
@@ -97,20 +111,31 @@ func (s *Service) writeLoop(ctx context.Context) {
 	defer s.wg.Done()
 	channel := s.bp.Out()
 	for items := range channel {
-		atomic.AddInt64(&s.consumeCounter, 1)
-		log.Printf("SERVICE: Channel write counter %v \n", atomic.LoadInt64(&s.consumeCounter))
-		start := time.Now()
-		err := s.writer.BulkInsert(ctx, items)
-		if err != nil {
-			log.Printf("SERVICE: Error inserting item %v \n", err)
+		if len(items) > 0 {
+			doc := items[len(items)-1]
+			if lastID, ok := doc["_id"].(primitive.ObjectID); !ok {
+				s.logger.Warn(
+					"service.writeLoop.invalid_id",
+					"_id", lastID,
+					"id_type", fmt.Sprintf("%T", lastID),
+				)
+			} else {
+				count := atomic.AddInt64(&s.consumeCounter, 1)
+				s.logger.Info("service.writeLoop.channelCounter",
+					"_id", lastID,
+					"consume_counter", count,
+				)
+				err := s.writer.BulkInsert(ctx, items)
+				if err != nil {
+					s.logger.Error("service.writeLoop.bulkInsertError", "error", err)
+				}
+			}
 		}
-		elapsed := time.Since(start)
-		log.Printf("SERVICE: Time elapsed %v \n", elapsed)
 	}
 }
 
 func (s *Service) Close() {
-	log.Println("SERVICE: Closing Service")
+	s.logger.Info("service.closing")
 	s.readCancel()
 	s.bp.Close()
 	s.wg.Wait()
