@@ -106,7 +106,6 @@ func (s *Service) readLoop(ctx context.Context) {
 
 func (s *Service) writeLoop(ctx context.Context) {
 	defer s.wg.Done()
-	defer s.log()
 	channel := s.bp.Out()
 	for items := range channel {
 		if len(items) > 0 {
@@ -137,10 +136,7 @@ func (s *Service) writeLoop(ctx context.Context) {
 	}
 	s.logger.Info("service.writeLoop.done")
 }
-func (s *Service) log() {
-	s.logger.Info("service.writeLoop.done")
 
-}
 func (s *Service) Wait() {
 	s.wg.Wait()
 }
