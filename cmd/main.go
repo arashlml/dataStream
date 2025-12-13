@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"log/slog"
 	"os"
 
@@ -30,14 +29,18 @@ func main() {
 	MongoConnector := mongorepository.NewMongoConnector(mongoUri, dbName, collectionName, logger)
 	client, err := MongoConnector.Connect()
 	if err != nil {
-		log.Fatalf("ERROR FROM MONGO CONNECT -> %v", err)
+		logger.Error("main.connecting.mongo.server.failed",
+			"error", err,
+		)
 	}
 	col := MongoConnector.MakeMongoCollection(client)
 	it := mongoiterator.NewMongoIterator(col, 5000, logger)
 	elasticConnector := elasticrepository.NewElasticConnector(elasticUri, elasticUsername, elasticPassword, logger)
 	elasticClient, err := elasticConnector.Connect()
 	if err != nil {
-		log.Fatalf("ERROR FROM ELASTIC CONNECT -> %v", err)
+		logger.Error("main.connecting.elastic.server.failed",
+			"error", err,
+		)
 	}
 	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, elasticIndex, logger)
 	bp := BackPressure.NewBackPressure[[]bson.M](5000, logger)
