@@ -48,7 +48,8 @@ func (e *ElasticConnector) Connect() (*elasticsearch.Client, error) {
 
 	if res.IsError() {
 		e.logger.Error("Elastic.connector.pinging.server.error",
-			"error", res.String())
+			"error", res.String(),
+		)
 		return nil, fmt.Errorf("ping error: %s", res.Status())
 	}
 	e.logger.Info("Elastic.connector.connecting.server.success")

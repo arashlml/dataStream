@@ -149,7 +149,7 @@ func (s *Service) writeLoop(ctx context.Context) {
 	s.logger.Info("service.writeLoop.done")
 }
 
-func (s *Service) retry(ctx context.Context, attempts int, interval time.Duration, buf bytes.Buffer, lastID string, lengthOfBatch int64) error {
+func (s *Service) retry(ctx context.Context, attempts int, interval time.Duration, buf bytes.Buffer, lastID string, lengthOfBatch int64) {
 	var err error
 
 	for attempt := 1; attempt <= attempts; attempt++ {
@@ -160,7 +160,7 @@ func (s *Service) retry(ctx context.Context, attempts int, interval time.Duratio
 				"attempt", attempt,
 				"_id", lastID,
 			)
-			return nil
+			return
 		}
 
 		s.logger.Warn(
@@ -174,12 +174,21 @@ func (s *Service) retry(ctx context.Context, attempts int, interval time.Duratio
 			select {
 			case <-time.After(time.Duration(attempt) * interval):
 			case <-ctx.Done():
-				return ctx.Err()
+				s.logger.Error("service.retry.failed",
+					"attempt", attempt,
+					"_id", lastID,
+					"error", err,
+				)
+				return
 			}
 		}
 	}
-
-	return err
+	s.logger.Warn("service.retry.failed",
+		"attempt", attempts,
+		"_id", lastID,
+		"error", err,
+	)
+	return
 }
 func (s *Service) Wait() {
 	s.wg.Wait()
