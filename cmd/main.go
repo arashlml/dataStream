@@ -6,6 +6,7 @@ import (
 	"os"
 
 	BackPressure "github.com/arashlml/mongo-reader/pkg/back_pressure"
+	"github.com/arashlml/mongo-reader/pkg/bson_to_bytes"
 	mongoiterator "github.com/arashlml/mongo-reader/pkg/iterator/mongo_iterator"
 	"github.com/arashlml/mongo-reader/repository/elasticrepository"
 	"github.com/arashlml/mongo-reader/repository/mongorepository"
@@ -15,24 +16,33 @@ import (
 
 func main() {
 	mongoUri := "mongodb://localhost:27017"
+	dbName := "mydb"
+	collectionName := "users"
 	elasticUri := "https://localhost:9200"
+	elasticUsername := "elastic"
+	elasticPassword := "HUarUJmrvXjpwU7d+ji7"
+	elasticIndex := "users"
+
 	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: false,
 		Level: slog.LevelDebug,
 	})
 	logger := slog.New(logHandler)
-	client, err := mongorepository.Connect(mongoUri)
+	MongoConnector := mongorepository.NewMongoConnector(mongoUri, dbName, collectionName, logger)
+	client, err := MongoConnector.Connect()
 	if err != nil {
 		log.Fatalf("ERROR FROM MONGO CONNECT -> %v", err)
 	}
-	col := mongorepository.MakeMongoCollection(client, "mydb", "users")
+	col := MongoConnector.MakeMongoCollection(client)
 	it := mongoiterator.NewMongoIterator(col, 5000, logger)
-	elasticClient, err := elasticrepository.Connect(elasticUri, "elastic", "HUarUJmrvXjpwU7d+ji7")
+	elasticConnector := elasticrepository.NewElasticConnector(elasticUri, elasticUsername, elasticPassword, logger)
+	elasticClient, err := elasticConnector.Connect()
 	if err != nil {
 		log.Fatalf("ERROR FROM ELASTIC CONNECT -> %v", err)
 	}
-	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, "users", logger)
+	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, elasticIndex, logger)
 	bp := BackPressure.NewBackPressure[[]bson.M](5000, logger)
-	service := syncservice.NewService(it, elasticRepo, bp, logger)
+	convertor := bson_to_bytes.NewConvertor(elasticIndex, logger)
+	service := syncservice.NewService(it, elasticRepo, bp, logger, convertor)
 
 	service.Wait()
 

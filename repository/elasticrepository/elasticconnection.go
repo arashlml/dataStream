@@ -3,17 +3,28 @@ package elasticrepository
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
-func Connect(uri, username, password string) (*elasticsearch.Client, error) {
+type ElasticConnector struct {
+	uri      string
+	username string
+	password string
+	logger   *slog.Logger
+}
+
+func NewElasticConnector(uri string, username string, password string, logger *slog.Logger) *ElasticConnector {
+	return &ElasticConnector{uri: uri, username: username, password: password, logger: logger}
+}
+
+func (e *ElasticConnector) Connect() (*elasticsearch.Client, error) {
 	cfg := elasticsearch.Config{
-		Addresses: []string{uri},
-		Username:  username,
-		Password:  password,
+		Addresses: []string{e.uri},
+		Username:  e.username,
+		Password:  e.password,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
@@ -23,21 +34,23 @@ func Connect(uri, username, password string) (*elasticsearch.Client, error) {
 
 	es, err := elasticsearch.NewClient(cfg)
 	if err != nil {
-		log.Printf("Error creating the client: %s", err)
+		e.logger.Error("Elastic.connector.new.server.error",
+			"error", err)
 		return nil, err
 	}
 	res, err := es.Ping()
 	if err != nil {
-		log.Printf("Error pinging Elasticsearch: %s", err)
+		e.logger.Error("Elastic.connector.pinging.server.error",
+			"error", err)
 		return nil, err
 	}
 	defer res.Body.Close()
 
 	if res.IsError() {
-		log.Printf("Elasticsearch returned error status: %s", res.Status())
+		e.logger.Error("Elastic.connector.pinging.server.error",
+			"error", res.String())
 		return nil, fmt.Errorf("ping error: %s", res.Status())
 	}
-
-	log.Println("Connected to Elasticsearch successfully")
+	e.logger.Info("Elastic.connector.connecting.server.success")
 	return es, nil
 }

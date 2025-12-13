@@ -9,8 +9,6 @@ import (
 	"sync/atomic"
 
 	"github.com/elastic/go-elasticsearch/v8"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type ElasticRepository struct {
@@ -18,7 +16,6 @@ type ElasticRepository struct {
 	index        string
 	totalCounter int64
 	logger       *slog.Logger
-	lastID       primitive.ObjectID
 }
 
 func NewElasticRepository(client *elasticsearch.Client, index string, logger *slog.Logger) *ElasticRepository {
@@ -36,74 +33,7 @@ func NewElasticRepository(client *elasticsearch.Client, index string, logger *sl
 	return r
 }
 
-func (e *ElasticRepository) BulkInsert(ctx context.Context, batch []bson.M) error {
-	var buf bytes.Buffer
-
-	if len(batch) == 0 {
-		e.logger.Warn(
-			"elastic.repository.bulk.skipped",
-			"reason", "empty batch",
-		)
-		return nil
-	}
-	if len(batch) > 0 {
-		doc := batch[len(batch)-1]
-		if lastID, ok := doc["_id"].(primitive.ObjectID); !ok {
-			e.logger.Warn(
-				"elastic.repository.invalid_id",
-				"_id", lastID,
-				"id_type", fmt.Sprintf("%T", lastID),
-			)
-		} else {
-			e.lastID = lastID
-		}
-	}
-
-	for _, doc := range batch {
-
-		id, ok := doc["_id"]
-		if !ok {
-			e.logger.Error(
-				"elastic.repository.bulk.document.missing_id",
-			)
-			return fmt.Errorf("_id not found in document")
-		}
-
-		delete(doc, "_id")
-
-		meta := map[string]map[string]interface{}{
-			"index": {
-				"_index": e.index,
-				"_id":    id,
-			},
-		}
-
-		metaBytes, err := json.Marshal(meta)
-		if err != nil {
-			e.logger.Error(
-				"elastic.repository.bulk.meta.marshal.failed",
-				"error", err,
-				"_id", e.lastID,
-			)
-			return err
-		}
-
-		docBytes, err := json.Marshal(doc)
-		if err != nil {
-			e.logger.Error(
-				"elastic.repository.bulk.doc.marshal.failed",
-				"error", err,
-				"_id", e.lastID,
-			)
-			return err
-		}
-
-		buf.Write(metaBytes)
-		buf.WriteByte('\n')
-		buf.Write(docBytes)
-		buf.WriteByte('\n')
-	}
-
+func (e *ElasticRepository) BulkInsert(ctx context.Context, buf bytes.Buffer, lastID string, lengthOfBatch int64) error {
 	res, err := e.client.Bulk(
 		bytes.NewReader(buf.Bytes()),
 		e.client.Bulk.WithContext(ctx),
@@ -112,8 +42,7 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch []bson.M) erro
 		e.logger.Error(
 			"elastic.repository.bulk.request.failed",
 			"error", err,
-			"batch_size", len(batch),
-			"_id", e.lastID,
+			"_id", lastID,
 		)
 		return err
 	}
@@ -123,7 +52,7 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch []bson.M) erro
 		e.logger.Error(
 			"elastic.repository.bulk.response.error",
 			"status", res.Status(),
-			"_id", e.lastID,
+			"_id", lastID,
 		)
 		return fmt.Errorf("elastic bulk error: %s", res.String())
 	}
@@ -133,7 +62,7 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch []bson.M) erro
 		e.logger.Error(
 			"elastic.repository.bulk.decode.failed",
 			"error", err,
-			"_id", e.lastID,
+			"_id", lastID,
 		)
 		return err
 	}
@@ -142,20 +71,18 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch []bson.M) erro
 		e.logger.Warn(
 			"elastic.repository.bulk.partial.failure",
 			"index", e.index,
-			"batch_size", len(batch),
 			"response", result,
-			"_id", e.lastID,
+			"_id", lastID,
 		)
 		return fmt.Errorf("bulk insert had partial errors")
 	}
 
-	total := atomic.AddInt64(&e.totalCounter, int64(len(batch)))
+	total := atomic.AddInt64(&e.totalCounter, lengthOfBatch)
 
 	e.logger.Info(
 		"elastic.repository.bulk.success",
 		"index", e.index,
-		"batch_size", len(batch),
-		"_id", e.lastID,
+		"_id", lastID,
 		"total_inserted", total,
 	)
 

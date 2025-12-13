@@ -1,6 +1,7 @@
 package syncservice
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"sync/atomic"
 
 	BackPressure "github.com/arashlml/mongo-reader/pkg/back_pressure"
+	"github.com/arashlml/mongo-reader/pkg/bson_to_bytes"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,7 +21,7 @@ type Reader interface {
 	Next(ctx context.Context) error
 }
 type Writer interface {
-	BulkInsert(ctx context.Context, batch []bson.M) error
+	BulkInsert(ctx context.Context, buf bytes.Buffer, lastID string, lengthOfBatch int64) error
 }
 
 type Service struct {
@@ -34,9 +36,10 @@ type Service struct {
 	consumeCounter  int64
 	producerCounter int64
 	logger          *slog.Logger
+	convertor       *bson_to_bytes.Convertor
 }
 
-func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bson.M], logger *slog.Logger) *Service {
+func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bson.M], logger *slog.Logger, convertor *bson_to_bytes.Convertor) *Service {
 	readCtx, readCancelFunc := context.WithCancel(context.Background())
 
 	s := &Service{
@@ -48,6 +51,7 @@ func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bs
 		writeCtx:   context.Background(),
 		wg:         &sync.WaitGroup{},
 		logger:     logger,
+		convertor:  convertor,
 	}
 
 	s.wg.Add(2)
@@ -122,8 +126,13 @@ func (s *Service) writeLoop(ctx context.Context) {
 					"_id", lastID,
 					"consume_counter", count,
 				)
-
-				err := s.writer.BulkInsert(ctx, items)
+				buf, id, err := s.convertor.ConvertToBytes(items)
+				if err != nil {
+					s.logger.Error("service.writeLoop.error",
+						"error", err,
+						"_id", lastID)
+				}
+				err = s.writer.BulkInsert(ctx, buf, id, int64(len(items)))
 
 				if err != nil {
 					s.logger.Error("service.writeLoop.bulkInsertError",
