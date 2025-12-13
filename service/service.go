@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	BackPressure "github.com/arashlml/mongo-reader/pkg/back_pressure"
 	"github.com/arashlml/mongo-reader/pkg/bson_to_bytes"
@@ -139,6 +140,7 @@ func (s *Service) writeLoop(ctx context.Context) {
 						"_id", lastID,
 						"error", err,
 					)
+
 				}
 			}
 		}
@@ -146,6 +148,38 @@ func (s *Service) writeLoop(ctx context.Context) {
 	s.logger.Info("service.writeLoop.done")
 }
 
+func (s *Service) Start(ctx context.Context, attempts int, interval time.Duration, fn func() error, lastID string) error {
+	var err error
+
+	for attempt := 1; attempt <= attempts; attempt++ {
+		err = fn()
+		if err == nil {
+			s.logger.Info(
+				"service.retry.success",
+				"attempt", attempt,
+				"_id", lastID,
+			)
+			return nil
+		}
+
+		s.logger.Warn(
+			"service.retry.failed",
+			"attempt", attempt,
+			"error", err,
+			"_id", lastID,
+		)
+
+		if attempt < attempts {
+			select {
+			case <-time.After(time.Duration(attempt) * interval):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	return err
+}
 func (s *Service) Wait() {
 	s.wg.Wait()
 }
