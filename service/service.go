@@ -140,6 +140,7 @@ func (s *Service) writeLoop(ctx context.Context) {
 						"_id", lastID,
 						"error", err,
 					)
+					s.retry(ctx, 5, 5*time.Second, buf, id, int64(len(items)))
 
 				}
 			}
@@ -148,11 +149,11 @@ func (s *Service) writeLoop(ctx context.Context) {
 	s.logger.Info("service.writeLoop.done")
 }
 
-func (s *Service) Start(ctx context.Context, attempts int, interval time.Duration, fn func() error, lastID string) error {
+func (s *Service) retry(ctx context.Context, attempts int, interval time.Duration, buf bytes.Buffer, lastID string, lengthOfBatch int64) error {
 	var err error
 
 	for attempt := 1; attempt <= attempts; attempt++ {
-		err = fn()
+		err = s.writer.BulkInsert(ctx, buf, lastID, lengthOfBatch)
 		if err == nil {
 			s.logger.Info(
 				"service.retry.success",
