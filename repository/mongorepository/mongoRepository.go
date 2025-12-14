@@ -2,6 +2,10 @@ package mongorepository
 
 import (
 	"context"
+
+	"github.com/arashlml/mongo-reader/state"
+	"go.mongodb.org/mongo-driver/bson"
+
 	"log/slog"
 	"time"
 
@@ -14,14 +18,16 @@ type MongoConnector struct {
 	dbName         string
 	collectionName string
 	logger         *slog.Logger
+	state          *state.State
 }
 
-func NewMongoConnector(uri string, dbName string, collectionName string, logger *slog.Logger) *MongoConnector {
+func NewMongoConnector(uri string, dbName string, collectionName string, logger *slog.Logger, state *state.State) *MongoConnector {
 	return &MongoConnector{
 		uri:            uri,
 		dbName:         dbName,
 		collectionName: collectionName,
 		logger:         logger,
+		state:          state,
 	}
 }
 
@@ -46,6 +52,15 @@ func (m *MongoConnector) Connect() (*mongo.Client, error) {
 
 func (m *MongoConnector) MakeMongoCollection(client *mongo.Client) *mongo.Collection {
 	col := client.Database(m.dbName).Collection(m.collectionName)
+	filter := bson.M{}
+	if !m.state.LastID.IsZero() {
+		filter["_id"] = bson.M{"$gt": m.state.LastID}
+	}
+	count, err := col.CountDocuments(context.Background(), filter)
+	if err != nil {
+		m.logger.Error("mongo.connector.count-collection.error")
+	}
+	m.state.SetTotalDocuments(count)
 	m.logger.Info("mongo.connector.connecting.collection.success")
 	return col
 }

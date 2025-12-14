@@ -3,16 +3,13 @@ package syncservice
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	BackPressure "github.com/arashlml/mongo-reader/pkg/back_pressure"
-	"github.com/arashlml/mongo-reader/pkg/bson_to_bytes"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/arashlml/mongo-reader/state"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -26,33 +23,32 @@ type Writer interface {
 }
 
 type Service struct {
-	reader          Reader
-	writer          Writer
-	bp              *BackPressure.BackPressure[[]bson.M]
-	readCtx         context.Context
-	readCancel      context.CancelFunc
-	writeCtx        context.Context
-	writeCancel     context.CancelFunc
-	wg              *sync.WaitGroup
-	consumeCounter  int64
-	producerCounter int64
-	logger          *slog.Logger
-	convertor       *bson_to_bytes.Convertor
+	reader      Reader
+	writer      Writer
+	bp          *BackPressure.BackPressure[state.Batch]
+	readCtx     context.Context
+	readCancel  context.CancelFunc
+	writeCtx    context.Context
+	writeCancel context.CancelFunc
+	wg          *sync.WaitGroup
+	logger      *slog.Logger
+	state       *state.State
 }
 
-func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bson.M], logger *slog.Logger, convertor *bson_to_bytes.Convertor) *Service {
+func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[state.Batch], logger *slog.Logger, state *state.State) *Service {
 	readCtx, readCancelFunc := context.WithCancel(context.Background())
-
+	writeCtx, writeCancelFunc := context.WithCancel(context.Background())
 	s := &Service{
-		reader:     reader,
-		writer:     writer,
-		bp:         bp,
-		readCtx:    readCtx,
-		readCancel: readCancelFunc,
-		writeCtx:   context.Background(),
-		wg:         &sync.WaitGroup{},
-		logger:     logger,
-		convertor:  convertor,
+		reader:      reader,
+		writer:      writer,
+		bp:          bp,
+		readCtx:     readCtx,
+		readCancel:  readCancelFunc,
+		writeCtx:    writeCtx,
+		writeCancel: writeCancelFunc,
+		wg:          &sync.WaitGroup{},
+		logger:      logger,
+		state:       state,
 	}
 
 	s.wg.Add(2)
@@ -63,48 +59,26 @@ func NewService(reader Reader, writer Writer, bp *BackPressure.BackPressure[[]bs
 }
 func (s *Service) Close() {
 	s.readCancel()
+	s.writeCancel()
 }
 
 func (s *Service) readLoop(ctx context.Context) {
 	defer s.wg.Done()
 	defer s.bp.Close()
 	for {
-		select {
-		case <-ctx.Done():
-			s.logger.Info("service.readLoop.stopped")
+
+		err := s.reader.Next(ctx)
+		if err != nil {
+			s.logger.Error("service.readLoop.error", "error", err)
+		}
+
+		s.state.SetElasticBatch()
+		s.state.SetBatchSize()
+		s.state.DeleteBsonBatch()
+		s.bp.Add(s.state.Batch)
+		if !s.reader.HasNext(ctx) {
+			s.logger.Info("\nservice.readLoop.done")
 			return
-		default:
-			if !s.reader.HasNext(ctx) {
-				s.logger.Info("service.readLoop.done")
-				return
-			}
-			err := s.reader.Next(ctx)
-			if err != nil {
-				s.logger.Error("service.readLoop.error", "error", err)
-			}
-			items := s.reader.CurrentBatch()
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				atomic.AddInt64(&s.producerCounter, 1)
-				s.bp.Add(items)
-				if len(items) > 0 {
-					doc := items[len(items)-1]
-					if lastID, ok := doc["_id"].(primitive.ObjectID); !ok {
-						s.logger.Warn(
-							"service.reader.invalid_id",
-							"_id", lastID,
-							"id_type", fmt.Sprintf("%T", lastID),
-						)
-					} else {
-						s.logger.Info("service.readLoop.channelCounter",
-							"_id", lastID,
-							"produce_counter", atomic.LoadInt64(&s.producerCounter),
-						)
-					}
-				}
-			}
 		}
 	}
 }
@@ -112,47 +86,22 @@ func (s *Service) readLoop(ctx context.Context) {
 func (s *Service) writeLoop(ctx context.Context) {
 	defer s.wg.Done()
 	channel := s.bp.Out()
-	for items := range channel {
-		if len(items) > 0 {
-			doc := items[len(items)-1]
-			if lastID, ok := doc["_id"].(primitive.ObjectID); !ok {
-				s.logger.Warn(
-					"service.writeLoop.invalid_id",
-					"_id", lastID,
-					"id_type", fmt.Sprintf("%T", lastID),
-				)
-			} else {
-				count := atomic.AddInt64(&s.consumeCounter, 1)
-				s.logger.Info("service.writeLoop.channelCounter",
-					"_id", lastID,
-					"consume_counter", count,
-				)
-				buf, id, err := s.convertor.ConvertToBytes(items)
-				if err != nil {
-					s.logger.Error("service.writeLoop.error",
-						"error", err,
-						"_id", lastID)
-				}
-				err = s.writer.BulkInsert(ctx, buf, id, int64(len(items)))
-
-				if err != nil {
-					s.logger.Error("service.writeLoop.bulkInsertError",
-						"_id", lastID,
-						"error", err,
-					)
-					s.retry(ctx, 5, 5*time.Second, buf, id, int64(len(items)))
-
-				}
-			}
+	for batch := range channel {
+		err := s.writer.BulkInsert(ctx, batch.ElasticBatch, batch.LastID.Hex(), batch.BatchSize)
+		if err != nil {
+			s.logger.Error("service.writeLoop.bulkInsertError",
+				"error", err,
+				"_id", batch.LastID,
+			)
+			s.retry(ctx, s.state.Attempts, 5*time.Second, batch.ElasticBatch, batch.LastID.Hex(), batch.BatchSize)
 		}
 	}
-	s.logger.Info("service.writeLoop.done")
 }
 
-func (s *Service) retry(ctx context.Context, attempts int, interval time.Duration, buf bytes.Buffer, lastID string, lengthOfBatch int64) {
+func (s *Service) retry(ctx context.Context, attempts int64, interval time.Duration, buf bytes.Buffer, lastID string, lengthOfBatch int64) {
 	var err error
-
-	for attempt := 1; attempt <= attempts; attempt++ {
+	var attempt int64
+	for attempt = 1; attempt <= attempts; attempt++ {
 		err = s.writer.BulkInsert(ctx, buf, lastID, lengthOfBatch)
 		if err == nil {
 			s.logger.Info(
@@ -162,14 +111,7 @@ func (s *Service) retry(ctx context.Context, attempts int, interval time.Duratio
 			)
 			return
 		}
-
-		s.logger.Warn(
-			"service.retry.failed",
-			"attempt", attempt,
-			"error", err,
-			"_id", lastID,
-		)
-
+		atomic.AddInt64(&s.state.TotalFailedDocuments, lengthOfBatch)
 		if attempt < attempts {
 			select {
 			case <-time.After(time.Duration(attempt) * interval):
