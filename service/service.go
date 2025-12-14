@@ -77,7 +77,7 @@ func (s *Service) readLoop(ctx context.Context) {
 		s.state.DeleteBsonBatch()
 		s.bp.Add(s.state.Batch)
 		if !s.reader.HasNext(ctx) {
-			s.logger.Info("\nservice.readLoop.done")
+			s.logger.Info("service.readLoop.done")
 			return
 		}
 	}

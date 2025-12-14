@@ -142,20 +142,27 @@ func (s *State) progress() {
 	written := atomic.LoadInt64(&s.TotalWrittenDocuments)
 	failed := atomic.LoadInt64(&s.TotalFailedDocuments)
 	total := atomic.LoadInt64(&s.TotalDocuments)
+	percent := float64(0)
 	processed := written + failed
-	percent := float64(processed) / float64(total)
-
-	if total == 0 {
-		percent = 0
+	if total != 0 {
+		percent = (float64(processed) / float64(total)) * 100
 	}
 
+	barWidth := 30
+	filled := int(percent / 100 * float64(barWidth))
+
+	bar := strings.Repeat("=", filled) + ">" +
+		strings.Repeat(" ", barWidth-filled)
+
+	fmt.Print("\033[2K\r")
 	fmt.Printf(
-		"\r read:%d | written:%d | failed:%d | total:%d | progress: %.1f %%",
+		"[%s] %.1f%% | read:%d | written:%d | fail:%d | total: %d",
+		bar,
+		percent,
 		read,
 		written,
 		failed,
 		total,
-		percent*100,
 	)
 }
 func (s *State) ProgressWthCancel(ctx context.Context) {
