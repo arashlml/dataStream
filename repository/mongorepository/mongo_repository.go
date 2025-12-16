@@ -13,7 +13,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type MongoConnector struct {
+type Config struct {
+	Uri        string `koanf:"uri"`
+	Username   string `koanf:"username"`
+	Password   string `koanf:"password"`
+	Db         string `koanf:"db"`
+	Collection string `koanf:"collection"`
+}
+type Connector struct {
 	uri            string
 	dbName         string
 	collectionName string
@@ -21,8 +28,8 @@ type MongoConnector struct {
 	state          *state.State
 }
 
-func NewMongoConnector(uri string, dbName string, collectionName string, logger *slog.Logger, state *state.State) *MongoConnector {
-	return &MongoConnector{
+func NewConnector(uri string, dbName string, collectionName string, logger *slog.Logger, state *state.State) *Connector {
+	return &Connector{
 		uri:            uri,
 		dbName:         dbName,
 		collectionName: collectionName,
@@ -31,7 +38,7 @@ func NewMongoConnector(uri string, dbName string, collectionName string, logger 
 	}
 }
 
-func (m *MongoConnector) Connect() (*mongo.Client, error) {
+func (m *Connector) Connect() (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(m.uri))
@@ -50,7 +57,7 @@ func (m *MongoConnector) Connect() (*mongo.Client, error) {
 	return client, nil
 }
 
-func (m *MongoConnector) MakeMongoCollection(client *mongo.Client) *mongo.Collection {
+func (m *Connector) MakeCollection(client *mongo.Client) *mongo.Collection {
 	col := client.Database(m.dbName).Collection(m.collectionName)
 	filter := bson.M{}
 	if !m.state.LastID.IsZero() {

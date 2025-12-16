@@ -36,6 +36,7 @@ func NewService(iterator Iterator, writer Writer, bp *BackPressure.BackPressure[
 	s := &Service{
 		iterator: iterator,
 		writer:   writer,
+
 		bp:       bp,
 		readCtx:  context.Background(),
 		writeCtx: context.Background(),

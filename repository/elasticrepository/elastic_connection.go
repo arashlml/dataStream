@@ -9,18 +9,25 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
-type ElasticConnector struct {
+type Config struct {
+	Uri      string `koanf:"uri"`
+	Username string `koanf:"username"`
+	Password string `koanf:"password"`
+	Index    string `koanf:"index"`
+}
+
+type Connector struct {
 	uri      string
 	username string
 	password string
 	logger   *slog.Logger
 }
 
-func NewElasticConnector(uri string, username string, password string, logger *slog.Logger) *ElasticConnector {
-	return &ElasticConnector{uri: uri, username: username, password: password, logger: logger}
+func NewConnector(uri string, username string, password string, logger *slog.Logger) *Connector {
+	return &Connector{uri: uri, username: username, password: password, logger: logger}
 }
 
-func (e *ElasticConnector) Connect() (*elasticsearch.Client, error) {
+func (e *Connector) Connect() (*elasticsearch.Client, error) {
 	cfg := elasticsearch.Config{
 		Addresses: []string{e.uri},
 		Username:  e.username,

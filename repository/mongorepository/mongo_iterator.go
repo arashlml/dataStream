@@ -14,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type MongoIterator struct {
+type Iterator struct {
 	col       *mongo.Collection
 	batchSize int64
 	batch     []bson.M
@@ -24,11 +24,11 @@ type MongoIterator struct {
 	state     *state.State
 }
 
-func NewMongoIterator(col *mongo.Collection, batchSize int64, logger *slog.Logger, state *state.State) *MongoIterator {
+func NewIterator(col *mongo.Collection, batchSize int64, logger *slog.Logger, state *state.State) *Iterator {
 	if batchSize <= 0 {
 		batchSize = 50
 	}
-	m := &MongoIterator{
+	m := &Iterator{
 		col:       col,
 		batchSize: batchSize,
 		hasNext:   true,
@@ -38,7 +38,7 @@ func NewMongoIterator(col *mongo.Collection, batchSize int64, logger *slog.Logge
 	return m
 }
 
-func (m *MongoIterator) Next(ctx context.Context) error {
+func (m *Iterator) Next(ctx context.Context) error {
 	if m.cursor != nil {
 		if err := m.cursor.Close(ctx); err != nil {
 			m.logger.Error("mongo.cursor.close.error",
@@ -90,7 +90,7 @@ func (m *MongoIterator) Next(ctx context.Context) error {
 	return nil
 }
 
-func (m *MongoIterator) CurrentBatch() []map[string]interface{} {
+func (m *Iterator) CurrentBatch() []map[string]interface{} {
 	var convertedBatch []map[string]interface{}
 	for _, doc := range m.batch {
 		if id, ok := doc["_id"].(primitive.ObjectID); ok {
@@ -101,7 +101,7 @@ func (m *MongoIterator) CurrentBatch() []map[string]interface{} {
 	return convertedBatch
 }
 
-func (m *MongoIterator) HasNext(ctx context.Context) bool {
+func (m *Iterator) HasNext(ctx context.Context) bool {
 
 	if !m.hasNext {
 		m.logger.Info(

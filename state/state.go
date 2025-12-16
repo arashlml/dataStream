@@ -2,10 +2,8 @@ package state
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -13,11 +11,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// TODO : GET RID OF THE BATCH FROM STATE
-
 type storage interface {
-	Write(interface{}) error
-	Read(interface{}) error
+	Write(lastInsertedID string) error
+	Read() string
 }
 
 type State struct {
@@ -30,20 +26,20 @@ type State struct {
 	Index                 string
 	logger                *slog.Logger
 	LastInsertedID        string
-	readFromFile          bool   // TODO : USING THE STANDALONE PACKAGE FOR WRITING TO A FILE
-	path                  string // TODO : RENAME PATH
+	readFromFile          bool
+	storage               storage
 }
 
-func NewState(attempts int64, index string, logger *slog.Logger, path string, readFromFile bool) *State {
+func NewState(attempts int64, index string, logger *slog.Logger, readFromFile bool, storage storage) *State {
 	s := &State{
 		Attempts:     attempts,
 		Index:        index,
 		logger:       logger,
 		readFromFile: readFromFile,
-		path:         path,
+		storage:      storage,
 	}
 	if readFromFile {
-		id := s.ReadFromFile()
+		id := s.storage.Read()
 		var err error
 		s.LastID, err = primitive.ObjectIDFromHex(id)
 		if err != nil {
@@ -61,7 +57,12 @@ func (s *State) SetLastID(id primitive.ObjectID) {
 
 func (s *State) SetLastInsertedID(id string) {
 	s.LastInsertedID = id
-	s.WriteToFile()
+	if err := s.storage.Write(id); err != nil {
+		s.logger.Error("state.SetLastInsertedID.writing.to.csv.failed",
+			"last_id", id,
+			"error", err,
+		)
+	}
 
 }
 func (s *State) SetTotalDocuments(total int64) {
@@ -107,53 +108,4 @@ func (s *State) ProgressWithCancel(ctx context.Context) {
 			s.progress()
 		}
 	}
-}
-
-func (s *State) WriteToFile() {
-	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		s.logger.Error(
-			"state.OpenFile.failed",
-			"error", err,
-		)
-	}
-	writer := csv.NewWriter(f)
-
-	err = writer.Write([]string{s.LastInsertedID})
-	if err != nil {
-		s.logger.Error("state.writeToFile.write.failed",
-			"_id", s.LastInsertedID,
-			"error", err,
-		)
-	}
-	defer f.Close()
-	defer writer.Flush()
-}
-
-func (s *State) ReadFromFile() string {
-	f, err := os.Open(s.path)
-	if err != nil {
-		s.logger.Error("state.readFromFile.open.failed", "error", err)
-		return ""
-	}
-	defer f.Close()
-
-	reader := csv.NewReader(f)
-	rows, err := reader.ReadAll()
-	if err != nil {
-		s.logger.Error("state.readFromFile.read.failed", "error", err)
-		return ""
-	}
-
-	if len(rows) == 0 {
-		return ""
-	}
-
-	last := rows[len(rows)-1]
-	if len(last) == 0 || last[0] == "" {
-		s.logger.Error("state.readFromFile.invalid.row", "row", last)
-		return ""
-	}
-
-	return strings.TrimSpace(last[0])
 }

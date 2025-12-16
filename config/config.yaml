@@ -1,12 +1,14 @@
-mongoUri : "mongodb://localhost:27017"
-dbName : "mydb"
-collectionName : "products"
-elasticUri : "http://localhost:9200"
-elasticUsername : "elastic"
-elasticPassword : "mJquAU0Sa2cgYSyz2bnf"
-elasticIndex : "products"
-filePath : "last_inserted_id.csv"
-readFromFile : true
+filePath: "last_inserted_id.csv"
+readFromFile: true
 attempts : 5
-batchSize : 1
+batchSize : 5000
 bufferSize : 50
+mongo :
+  uri: "mongodb://localhost:27017"
+  db: "mydb"
+  collection: "products"
+elastic:
+  uri: "http://localhost:9200"
+  username: "elastic"
+  password: "mJquAU0Sa2cgYSyz2bnf"
+  index: "products"
