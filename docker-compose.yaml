@@ -1,0 +1,24 @@
+services:
+  mongodb:
+    image: mongo:8.2
+    ports:
+      - 27017:27017
+    volumes:
+      - C:\Program Files\MongoDB\Server\8.2\data:\data\db
+  elastic:
+    image: elasticsearch:8.19.8
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+
+  mongo-reader:
+    build: .
+    volumes:
+      - .:/app
+    depends_on:
+      - mongodb
+      - elastic

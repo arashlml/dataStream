@@ -31,7 +31,6 @@ func (e *ElasticConnector) Connect() (*elasticsearch.Client, error) {
 			},
 		},
 	}
-
 	es, err := elasticsearch.NewClient(cfg)
 	if err != nil {
 		e.logger.Error("Elastic.connector.new.server.error",
@@ -40,7 +39,7 @@ func (e *ElasticConnector) Connect() (*elasticsearch.Client, error) {
 	}
 	res, err := es.Ping()
 	if err != nil {
-		e.logger.Error("Elastic.connector.pinging.server.error",
+		e.logger.Error("Elastic.connector.pinging.server.error.1",
 			"error", err)
 		return nil, err
 	}

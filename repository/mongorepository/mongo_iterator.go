@@ -86,17 +86,23 @@ func (m *MongoIterator) Next(ctx context.Context) error {
 			m.state.SetLastID(lastID)
 		}
 	}
-	m.state.SetBsonBatch(m.batch)
 	m.hasNext = m.batchSize == int64(len(m.batch))
 	return nil
 }
 
-func (m *MongoIterator) CurrentBatch() []bson.M {
-	return m.batch
+func (m *MongoIterator) CurrentBatch() []map[string]interface{} {
+	var convertedBatch []map[string]interface{}
+	for _, doc := range m.batch {
+		if id, ok := doc["_id"].(primitive.ObjectID); ok {
+			doc["_id"] = id.Hex()
+			convertedBatch = append(convertedBatch, doc)
+		}
+	}
+	return convertedBatch
 }
 
 func (m *MongoIterator) HasNext(ctx context.Context) bool {
-	//TODO:
+
 	if !m.hasNext {
 		m.logger.Info(
 			"mongo.iteration.finished",

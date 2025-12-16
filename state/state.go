@@ -1,10 +1,8 @@
 package state
 
 import (
-	"bytes"
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -12,17 +10,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type Batch struct {
-	LastID       primitive.ObjectID
-	BatchSize    int64
-	BsonBatch    []bson.M
-	ElasticBatch bytes.Buffer
+// TODO : GET RID OF THE BATCH FROM STATE
+
+type storage interface {
+	Write(interface{}) error
+	Read(interface{}) error
 }
+
 type State struct {
+	LastID                primitive.ObjectID
 	Attempts              int64
 	TotalReadDocuments    int64
 	TotalDocuments        int64
@@ -31,9 +30,8 @@ type State struct {
 	Index                 string
 	logger                *slog.Logger
 	LastInsertedID        string
-	readFromFile          bool
-	path                  string
-	Batch
+	readFromFile          bool   // TODO : USING THE STANDALONE PACKAGE FOR WRITING TO A FILE
+	path                  string // TODO : RENAME PATH
 }
 
 func NewState(attempts int64, index string, logger *slog.Logger, path string, readFromFile bool) *State {
@@ -57,81 +55,14 @@ func NewState(attempts int64, index string, logger *slog.Logger, path string, re
 	return s
 }
 
-func (s *State) SetElasticBatch() {
-	var buf bytes.Buffer
-
-	if len(s.BsonBatch) == 0 {
-		s.logger.Warn(
-			"State.convert.bulk.skipped",
-			"reason", "empty batch",
-		)
-		return
-	}
-
-	for _, doc := range s.BsonBatch {
-		id, ok := doc["_id"]
-		if !ok {
-			s.logger.Error(
-				"state.bulk.document.missing_id",
-			)
-			return
-		}
-
-		delete(doc, "_id")
-
-		meta := map[string]map[string]interface{}{
-			"index": {
-				"_index": s.Index,
-				"_id":    id,
-			},
-		}
-
-		metaBytes, err := json.Marshal(meta)
-		if err != nil {
-			s.logger.Error(
-				"state.bulk.meta.marshal.failed",
-				"error", err,
-				"_id", s.LastID,
-			)
-			return
-		}
-
-		docBytes, err := json.Marshal(doc)
-		if err != nil {
-			s.logger.Error(
-				"state.bulk.doc.marshal.failed",
-				"error", err,
-				"_id", s.LastID,
-			)
-			return
-		}
-
-		buf.Write(metaBytes)
-		buf.WriteByte('\n')
-		buf.Write(docBytes)
-		buf.WriteByte('\n')
-	}
-	s.ElasticBatch = buf
-	return
-}
-
 func (s *State) SetLastID(id primitive.ObjectID) {
 	s.LastID = id
-}
-func (s *State) SetBatchSize() {
-	s.BatchSize = int64(len(s.BsonBatch))
-}
-func (s *State) SetBsonBatch(batch []bson.M) {
-	s.BsonBatch = batch
 }
 
 func (s *State) SetLastInsertedID(id string) {
 	s.LastInsertedID = id
 	s.WriteToFile()
 
-}
-func (s *State) DeleteBsonBatch() {
-	s.BsonBatch = nil
 }
 func (s *State) SetTotalDocuments(total int64) {
 	s.TotalDocuments = total
@@ -148,7 +79,7 @@ func (s *State) progress() {
 		percent = (float64(processed) / float64(total)) * 100
 	}
 
-	barWidth := 30
+	barWidth := 50
 	filled := int(percent / 100 * float64(barWidth))
 
 	bar := strings.Repeat("=", filled) + ">" +
@@ -165,10 +96,11 @@ func (s *State) progress() {
 		total,
 	)
 }
-func (s *State) ProgressWthCancel(ctx context.Context) {
+func (s *State) ProgressWithCancel(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			s.progress()
 			return
 		default:
 			time.Sleep(100 * time.Millisecond)
@@ -178,7 +110,7 @@ func (s *State) ProgressWthCancel(ctx context.Context) {
 }
 
 func (s *State) WriteToFile() {
-	f, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		s.logger.Error(
 			"state.OpenFile.failed",

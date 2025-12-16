@@ -36,17 +36,17 @@ func (m *MongoConnector) Connect() (*mongo.Client, error) {
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(m.uri))
 	if err != nil {
-		m.logger.Error("mongo.connector.connecting.to.server.error",
+		m.logger.Error("mongo.connect.connecting.to.server.error",
 			"error", err)
 		return nil, err
 	}
 
 	if err := client.Ping(ctx, nil); err != nil {
-		m.logger.Error("mongo.connector.pinging.server.error",
+		m.logger.Error("mongo.connect.pinging.server.error",
 			"error", err)
 		return nil, err
 	}
-	m.logger.Info("mongo.connector.connecting.server.success")
+	m.logger.Info("mongo.connect.connecting.server.success")
 	return client, nil
 }
 
