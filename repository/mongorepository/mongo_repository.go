@@ -22,15 +22,19 @@ type Config struct {
 }
 type Connector struct {
 	uri            string
+	username       string
+	password       string
 	dbName         string
 	collectionName string
 	logger         *slog.Logger
 	state          *state.State
 }
 
-func NewConnector(uri string, dbName string, collectionName string, logger *slog.Logger, state *state.State) *Connector {
+func NewConnector(uri, username, password, dbName, collectionName string, logger *slog.Logger, state *state.State) *Connector {
 	return &Connector{
 		uri:            uri,
+		username:       username,
+		password:       password,
 		dbName:         dbName,
 		collectionName: collectionName,
 		logger:         logger,
@@ -41,7 +45,8 @@ func NewConnector(uri string, dbName string, collectionName string, logger *slog
 func (m *Connector) Connect() (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(m.uri))
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(m.uri).SetAuth(options.Credential{Username: m.username, Password: m.password}))
 	if err != nil {
 		m.logger.Error("mongo.connect.connecting.to.server.error",
 			"error", err)
@@ -60,7 +65,7 @@ func (m *Connector) Connect() (*mongo.Client, error) {
 func (m *Connector) MakeCollection(client *mongo.Client) *mongo.Collection {
 	col := client.Database(m.dbName).Collection(m.collectionName)
 	filter := bson.M{}
-	if !m.state.LastID.IsZero() {
+	if m.state.LastID != "" {
 		filter["_id"] = bson.M{"$gt": m.state.LastID}
 	}
 	count, err := col.CountDocuments(context.Background(), filter)

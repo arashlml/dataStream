@@ -35,7 +35,7 @@ func main() {
 	}
 	storage := storage.NewStorage(logger, cfg.FilePath)
 	st := state.NewState(cfg.Attempts, cfg.Elastic.Index, logger, cfg.ReadFromFile, storage)
-	MongoConnector := mongorepository.NewConnector(cfg.Mongo.Uri, cfg.Mongo.Db, cfg.Mongo.Collection, logger, st)
+	MongoConnector := mongorepository.NewConnector(cfg.Mongo.Uri, cfg.Mongo.Username, cfg.Mongo.Password, cfg.Mongo.Db, cfg.Mongo.Collection, logger, st)
 	client, err := MongoConnector.Connect()
 	if err != nil {
 		logger.Error("main.connecting.mongo.server.failed",

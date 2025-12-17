@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type storage interface {
@@ -17,7 +15,7 @@ type storage interface {
 }
 
 type State struct {
-	LastID                primitive.ObjectID
+	LastID                string
 	Attempts              int64
 	TotalReadDocuments    int64
 	TotalDocuments        int64
@@ -41,7 +39,7 @@ func NewState(attempts int64, index string, logger *slog.Logger, readFromFile bo
 	if readFromFile {
 		id := s.storage.Read()
 		var err error
-		s.LastID, err = primitive.ObjectIDFromHex(id)
+		s.LastID = id
 		if err != nil {
 			s.logger.Error(
 				"state.newState.readFromFile.Failed",
@@ -51,7 +49,7 @@ func NewState(attempts int64, index string, logger *slog.Logger, readFromFile bo
 	return s
 }
 
-func (s *State) SetLastID(id primitive.ObjectID) {
+func (s *State) SetLastID(id string) {
 	s.LastID = id
 }
 

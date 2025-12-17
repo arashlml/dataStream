@@ -9,7 +9,6 @@ import (
 	"github.com/arashlml/mongo-reader/state"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -47,7 +46,7 @@ func (m *Iterator) Next(ctx context.Context) error {
 	}
 
 	filter := bson.M{}
-	if !m.state.LastID.IsZero() {
+	if m.state.LastID != "" {
 		filter["_id"] = bson.M{"$gt": m.state.LastID}
 	}
 	opts := options.Find().
@@ -76,7 +75,7 @@ func (m *Iterator) Next(ctx context.Context) error {
 	if len(m.batch) > 0 {
 		doc := m.batch[len(m.batch)-1]
 		atomic.AddInt64(&m.state.TotalReadDocuments, int64(len(m.batch)))
-		if lastID, ok := doc["_id"].(primitive.ObjectID); !ok {
+		if lastID, ok := doc["_id"].(string); !ok {
 			m.logger.Warn(
 				"mongo.record.invalid_id",
 				"_id", lastID,
@@ -93,16 +92,12 @@ func (m *Iterator) Next(ctx context.Context) error {
 func (m *Iterator) CurrentBatch() []map[string]interface{} {
 	var convertedBatch []map[string]interface{}
 	for _, doc := range m.batch {
-		if id, ok := doc["_id"].(primitive.ObjectID); ok {
-			doc["_id"] = id.Hex()
-			convertedBatch = append(convertedBatch, doc)
-		}
+		convertedBatch = append(convertedBatch, doc)
 	}
 	return convertedBatch
 }
 
 func (m *Iterator) HasNext(ctx context.Context) bool {
-
 	if !m.hasNext {
 		m.logger.Info(
 			"mongo.iteration.finished",
@@ -113,7 +108,6 @@ func (m *Iterator) HasNext(ctx context.Context) bool {
 			m.logger.Error("mongo.cursor.close.error", "error", err)
 		}
 		return m.hasNext
-
 	}
 	return m.hasNext
 }

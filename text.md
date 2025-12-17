@@ -87,8 +87,95 @@ curl -X POST "http://localhost:9200/products/_delete_by_query?pretty" -u "elasti
 ```bash
 curl -X GET "http://localhost:9200/products/_count?pretty" -u "elastic:mJquAU0Sa2cgYSyz2bnf"
 ```
+---
+## 7. make index for sazito product collectio
+```bash
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X PUT "http://localhost:9200/product" -H "Content-Type: application/json" -d '{"settings":{"number_of_shards":1,"number_of_replicas":0},"mappings":{"properties":{"_meta":{"type":"object","enabled":false},"store_id":{"type":"keyword"},"categories":{"type":"keyword","null_value":"__null__"},"category_ids":{"type":"keyword","null_value":"__null__"},"name":{"type":"text","analyzer":"standard","fields":{"keyword":{"type":"keyword","ignore_above":256}}},"description":{"type":"text","index":false},"slug":{"type":"keyword"},"is_enabled":{"type":"boolean"},"price":{"type":"integer"},"raw_price":{"type":"integer"},"discount_percentage":{"type":"integer"},"stock_number":{"type":"integer"},"created_at":{"type":"date","format":"epoch_second"},"updated_at":{"type":"date","format":"epoch_second"},"variants":{"type":"nested","properties":{"id":{"type":"integer"},"image_link":{"type":"keyword","index":false},"price":{"type":"integer"},"raw_price":{"type":"integer"},"stock_number":{"type":"integer"},"discount_percentage":{"type":"integer"},"features":{"type":"keyword"}}},"total_order":{"type":"long"},"total_sold":{"type":"long"}}}}'
+```
+---
+
+
+## 1️⃣ all products  (limit 10)
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"size\":10}"
+```
 
 ---
+
+## 2️⃣ search on name
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"query\":{\"match\":{\"name\":\"هزار\"}}}"
+```
+
+---
+
+## 3️⃣ filter only actives
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"query\":{\"term\":{\"is_enabled\":true}}}"
+```
+
+---
+
+## 4️⃣ filter with store_id
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"query\":{\"term\":{\"store_id\":\"208406\"}}}"
+```
+
+---
+
+## 5️⃣ range on price
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"query\":{\"range\":{\"price\":{\"lte\":3000}}}}"
+```
+
+---
+
+## 6️⃣ compound (search + filter)
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"query\":{\"bool\":{\"must\":[{\"match\":{\"name\":\"کالا\"}}],\"filter\":[{\"term\":{\"is_enabled\":true}}]}}}"
+```
+
+---
+
+## 7️⃣ sort based on updated_at
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"sort\":[{\"updated_at\":\"desc\"}],\"size\":10}"
+```
+
+---
+
+## 8️⃣ cursor pagination
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"size\":10,\"sort\":[{\"updated_at\":\"desc\"},{\"_id\":\"desc\"}]}"
+```
+
+---
+
+## 9️⃣ nested query on variants
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"query\":{\"nested\":{\"path\":\"variants\",\"query\":{\"term\":{\"variants.id\":3}}}}}"
+```
+
+---
+
+## 🔟 aggregation (average price)
+
+```cmd
+curl -u elastic:mJquAU0Sa2cgYSyz2bnf -X POST http://localhost:9200/product1/_search?pretty -H "Content-Type: application/json" -d "{\"size\":0,\"aggs\":{\"avg_price\":{\"avg\":{\"field\":\"price\"}}}}"
+```
+
+---
+
+
 
 ## Notes
 
@@ -100,3 +187,4 @@ curl -X GET "http://localhost:9200/products/_count?pretty" -u "elastic:mJquAU0Sa
 ---
 
 ✅ Ready to save as `elasticsearch-queries.md`
+

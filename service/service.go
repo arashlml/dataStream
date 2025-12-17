@@ -36,7 +36,6 @@ func NewService(iterator Iterator, writer Writer, bp *BackPressure.BackPressure[
 	s := &Service{
 		iterator: iterator,
 		writer:   writer,
-
 		bp:       bp,
 		readCtx:  context.Background(),
 		writeCtx: context.Background(),
@@ -60,7 +59,6 @@ func (s *Service) readLoop(ctx context.Context) {
 			s.logger.Error("service.readLoop.error", "error", err)
 		}
 		batch := s.iterator.CurrentBatch()
-		atomic.AddInt64(&s.state.TotalReadDocuments, int64(len(batch)))
 		s.bp.Add(batch)
 		if !s.iterator.HasNext(ctx) {
 			s.logger.Info("service.readLoop.done")
