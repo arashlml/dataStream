@@ -1,25 +1,64 @@
 package main
 
 import (
-	"log"
+	"context"
+	"log/slog"
+	"os"
 	"time"
 
-	BackPressure "github.com/arashlml/back-pressure"
-	"github.com/arashlml/mongo-reader/pkg/iterator/mongoIterator"
+	"github.com/arashlml/mongo-reader/config"
+	BackPressure "github.com/arashlml/mongo-reader/pkg/back_pressure"
+	"github.com/arashlml/mongo-reader/repository/elasticrepository"
 	"github.com/arashlml/mongo-reader/repository/mongorepository"
+	mongoiterator "github.com/arashlml/mongo-reader/repository/mongorepository"
 	"github.com/arashlml/mongo-reader/service"
-	"go.mongodb.org/mongo-driver/bson"
+	"github.com/arashlml/mongo-reader/state"
+	"github.com/arashlml/mongo-reader/state/storage"
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 )
 
+var k = koanf.New(".")
+
 func main() {
-	uri := "mongodb://localhost:27017"
-	client, err := mongorepository.Connect(uri)
-	if err != nil {
-		log.Fatalf("ERROR FROM CONNECT -> %v", err)
+	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: false,
+		Level: slog.LevelDebug,
+	})
+	logger := slog.New(logHandler)
+	if err := k.Load(file.Provider("config/config.yaml"), yaml.Parser()); err != nil {
+		logger.Error("error loading config: ", err)
 	}
-	col := mongorepository.MakeMongoCollection(client, "mydb", "users")
-	it := mongoIterator.NewMongoIterator(col, 50)
-	bp := BackPressure.NewBackPressure[[]bson.M](10, 50, 30*time.Second)
-	_ = service.NewService(it, nil, 50, bp)
-	time.Sleep(1 * time.Hour)
+	var cfg config.Config
+	if err := k.Unmarshal("", &cfg); err != nil {
+		logger.Error("error unmarshalling config: ", err)
+	}
+	storage := storage.NewStorage(logger, cfg.FilePath)
+	st := state.NewState(cfg.Attempts, cfg.Elastic.Index, logger, cfg.ReadFromFile, storage)
+	MongoConnector := mongorepository.NewConnector(cfg.Mongo.Uri, cfg.Mongo.Username, cfg.Mongo.Password, cfg.Mongo.Db, cfg.Mongo.Collection, logger, st)
+	client, err := MongoConnector.Connect()
+	if err != nil {
+		logger.Error("main.connecting.mongo.server.failed",
+			"error", err,
+		)
+	}
+	col := MongoConnector.MakeCollection(client)
+	it := mongoiterator.NewIterator(col, cfg.BatchSize, logger, st)
+	elasticConnector := elasticrepository.NewConnector(cfg.Elastic.Uri, cfg.Elastic.Username, cfg.Elastic.Password, logger)
+	elasticClient, err := elasticConnector.Connect()
+	if err != nil {
+		logger.Error("main.connecting.elastic.server.failed",
+			"error", err,
+		)
+	}
+	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, cfg.Elastic.Index, logger, st)
+	bp := BackPressure.NewBackPressure[[]map[string]interface{}](cfg.BufferSize, logger)
+	ctx, cancel := context.WithCancel(context.Background())
+	go st.ProgressWithCancel(ctx)
+	service := syncservice.NewService(it, elasticRepo, bp, logger, st)
+	service.Wait()
+	time.Sleep(3 * time.Second)
+	cancel()
+	logger.Info("migration is finished")
+
 }

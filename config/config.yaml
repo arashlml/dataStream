@@ -1,0 +1,16 @@
+filePath: "last_inserted_id.csv"
+readFromFile: true
+attempts : 5
+batchSize : 5000
+bufferSize : 50
+mongo :
+  uri: "mongodb://localhost:27018"
+  username: "root"
+  password: "39325b03649f3c34013338cb"
+  db: "szto-sdp-stg"
+  collection: "product"
+elastic:
+  uri: "http://localhost:9200"
+  username: "elastic"
+  password: "mJquAU0Sa2cgYSyz2bnf"
+  index: "product1"
