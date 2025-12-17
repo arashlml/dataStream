@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	BackPressure "github.com/arashlml/mongo-reader/pkg/back_pressure"
 	"github.com/arashlml/mongo-reader/state"
 )
 
@@ -22,26 +21,26 @@ type Writer interface {
 }
 
 type Service struct {
-	iterator Iterator
-	writer   Writer
-	bp       *BackPressure.BackPressure[[]map[string]interface{}]
-	readCtx  context.Context
-	writeCtx context.Context
-	wg       *sync.WaitGroup
-	logger   *slog.Logger
-	state    *state.State
+	iterator            Iterator
+	writer              Writer
+	readCtx             context.Context
+	writeCtx            context.Context
+	wg                  *sync.WaitGroup
+	logger              *slog.Logger
+	backPressureChannel chan []map[string]interface{}
+	state               *state.State
 }
 
-func NewService(iterator Iterator, writer Writer, bp *BackPressure.BackPressure[[]map[string]interface{}], logger *slog.Logger, state *state.State) *Service {
+func NewService(iterator Iterator, writer Writer, logger *slog.Logger, bufferSize int, state *state.State) *Service {
 	s := &Service{
-		iterator: iterator,
-		writer:   writer,
-		bp:       bp,
-		readCtx:  context.Background(),
-		writeCtx: context.Background(),
-		wg:       &sync.WaitGroup{},
-		logger:   logger,
-		state:    state,
+		iterator:            iterator,
+		writer:              writer,
+		readCtx:             context.Background(),
+		writeCtx:            context.Background(),
+		wg:                  &sync.WaitGroup{},
+		logger:              logger,
+		backPressureChannel: make(chan []map[string]interface{}, bufferSize),
+		state:               state,
 	}
 
 	s.wg.Add(2)
@@ -52,14 +51,14 @@ func NewService(iterator Iterator, writer Writer, bp *BackPressure.BackPressure[
 }
 func (s *Service) readLoop(ctx context.Context) {
 	defer s.wg.Done()
-	defer s.bp.Close()
+	defer close(s.backPressureChannel)
 	for {
 		err := s.iterator.Next(ctx)
 		if err != nil {
 			s.logger.Error("service.readLoop.error", "error", err)
 		}
 		batch := s.iterator.CurrentBatch()
-		s.bp.Add(batch)
+		s.backPressureChannel <- batch
 		if !s.iterator.HasNext(ctx) {
 			s.logger.Info("service.readLoop.done")
 			return
@@ -81,8 +80,7 @@ func (s *Service) lastIDFinder(batch []map[string]interface{}) string {
 
 func (s *Service) writeLoop(ctx context.Context) {
 	defer s.wg.Done()
-	channel := s.bp.Out()
-	for batch := range channel {
+	for batch := range s.backPressureChannel {
 		if len(batch) == 0 {
 			continue
 		}
