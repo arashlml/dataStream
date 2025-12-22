@@ -1,0 +1,29 @@
+storage:
+  filePath: "last_inserted_id.csv"
+state:
+  resumeCapability: true
+  attempts : 5
+service:
+  bufferSize : 10 # channel size
+  readTimeout: 2
+  insertTimeout: 2
+  retryInterval: 5
+mongo :
+  # "mongodb://host.docker.internal:27018"
+  uri: "mongodb://localhost:27018"
+  username: "root"
+  password: "39325b03649f3c34013338cb"
+  db: "szto-sdp-stg"
+  collection: "product"
+  attempts : 5
+  batchSize : 1000
+  pingTimeout : 2
+  countDocTimeout : 2
+  connectTimeout : 2
+elastic:
+  uri: "http://localhost:9200"
+  username: "elastic"
+  password: "mJquAU0Sa2cgYSyz2bnf"
+  index: "pro"
+  attempts : 5
+  pingTimeout : 5

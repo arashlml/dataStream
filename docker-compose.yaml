@@ -1,0 +1,49 @@
+services:
+  mongodb:
+    image: mongo:8.0
+    ports:
+      - 27017:27017
+    volumes:
+      - ./mongo-data:/data/db
+
+  elastic:
+    image: elasticsearch:8.19.8
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+
+  mongo-reader:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "9091:9091"
+    depends_on:
+      - mongodb
+      - elastic
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./metrics/prometheus.yaml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - mongo-reader
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  grafana-storage:
