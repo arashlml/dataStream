@@ -10,7 +10,7 @@ service:
   retryInterval: 5
 mongo :
   # "mongodb://host.docker.internal:27018"
-  uri: "mongodb://host.docker.internal:27018"
+  uri: "mongodb://localhost:27018"
   username: "root"
   password: "39325b03649f3c34013338cb"
   db: "szto-sdp-stg"
