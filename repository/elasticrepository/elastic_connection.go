@@ -12,12 +12,14 @@ import (
 )
 
 type Config struct {
-	Uri         string        `koanf:"uri"`
-	Username    string        `koanf:"username"`
-	Password    string        `koanf:"password"`
-	Index       string        `koanf:"index"`
-	Attempts    int           `koanf:"attempts"`
-	PingTimeout time.Duration `koanf:"pingTimeout"`
+	Uri           string        `koanf:"uri"`
+	Username      string        `koanf:"username"`
+	Password      string        `koanf:"password"`
+	Index         string        `koanf:"index"`
+	Attempts      int           `koanf:"attempts"`
+	PingTimeout   time.Duration `koanf:"pingTimeout"`
+	InsertTimeout time.Duration `koanf:"insertTimeout"`
+	RetryInterval time.Duration `koanf:"retryInterval"`
 }
 
 type Connector struct {

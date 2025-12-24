@@ -7,22 +7,28 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
-	"github.com/arashlml/mongo-reader/entity"
+	"github.com/arashlml/mongo-reader/dto"
+	"github.com/arashlml/mongo-reader/metrics"
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
 type ElasticRepository struct {
-	client *elasticsearch.Client
-	logger *slog.Logger
-	index  string
+	client        *elasticsearch.Client
+	logger        *slog.Logger
+	index         string
+	insertTimeOut time.Duration
+	metrics       *metrics.Metrics
 }
 
-func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, index string) *ElasticRepository {
+func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, index string, insertTimeOut time.Duration, metrics *metrics.Metrics) *ElasticRepository {
 	r := &ElasticRepository{
-		client: client,
-		logger: logger,
-		index:  index,
+		client:        client,
+		logger:        logger,
+		index:         index,
+		insertTimeOut: insertTimeOut,
+		metrics:       metrics,
 	}
 
 	r.logger.Info(
@@ -33,7 +39,7 @@ func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, ind
 	return r
 }
 
-func (e *ElasticRepository) Convertor(ctx context.Context, batch *entity.RawCollection) (bytes.Buffer, string, error) {
+func (e *ElasticRepository) Convertor(ctx context.Context, batch *dto.RawCollection) (bytes.Buffer, string, error) {
 	var buf bytes.Buffer
 	newDoc := map[string]interface{}{}
 	lastID := batch.LastItemID()
@@ -94,18 +100,19 @@ func (e *ElasticRepository) Convertor(ctx context.Context, batch *entity.RawColl
 	return buf, lastID, nil
 }
 
-func (e *ElasticRepository) BulkInsert(ctx context.Context, batch *entity.RawCollection) error {
+func (e *ElasticRepository) BulkInsert(ctx context.Context, batch *dto.RawCollection) error {
 	buf, lastID, err := e.Convertor(ctx, batch)
 	if err != nil {
 		e.logger.Error("elastic.repository.bulkInsert.error",
 			"error", err,
 		)
 	}
+	ctx, cancel := context.WithTimeout(ctx, e.insertTimeOut*time.Second)
 	res, err := e.client.Bulk(
 		bytes.NewReader(buf.Bytes()),
 		e.client.Bulk.WithContext(ctx),
 	)
-	e.client.Bulk.WithContext(ctx)
+	cancel()
 	if err != nil {
 		e.logger.Error(
 			"elastic.repository.bulk.request.failed",

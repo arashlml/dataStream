@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -24,6 +22,8 @@ type Config struct {
 	PingTimeout          time.Duration `koanf:"pingTimeout"`
 	CountDocQueryTimeout time.Duration `koanf:"countDocTimeout"`
 	ConnectTimeout       time.Duration `koanf:"connectTimeout"`
+	ReadTimeout          time.Duration `koanf:"readTimeout"`
+	IDType               string        `koanf:"idType"`
 }
 type Connector struct {
 	uri                  string
@@ -53,11 +53,14 @@ func NewConnector(uri, username, password, dbName, collectionName string, attemp
 	}
 }
 
-func (m *Connector) Connect(ctx context.Context) (*mongo.Client, error) {
+func (m *Connector) ConnectAndMakeCollection(ctx context.Context) (*mongo.Collection, error) {
 	connectCtx, cancel := context.WithTimeout(ctx, m.connectTimeout*time.Second)
 	defer cancel()
-	// .SetAuth(options.Credential{Username: m.username, Password: m.password}
-	client, err := mongo.Connect(connectCtx, options.Client().ApplyURI(m.uri).SetAuth(options.Credential{Username: m.username, Password: m.password}))
+	connOpts := options.Client().ApplyURI(m.uri)
+	if m.username != "" || m.password != "" {
+		connOpts = connOpts.SetAuth(options.Credential{Username: m.username, Password: m.password})
+	}
+	client, err := mongo.Connect(connectCtx, connOpts)
 	if err != nil {
 		m.logger.Error("mongo.connect.connecting.to.server.error",
 			"error", err)
@@ -78,7 +81,9 @@ func (m *Connector) Connect(ctx context.Context) (*mongo.Client, error) {
 		return nil, err
 	}
 	m.logger.Info("mongo.connect.connecting.server.success")
-	return client, nil
+	col := m.MakeCollection(ctx, client)
+
+	return col, nil
 }
 
 func (m *Connector) MakeCollection(ctx context.Context, client *mongo.Client) *mongo.Collection {
@@ -86,24 +91,6 @@ func (m *Connector) MakeCollection(ctx context.Context, client *mongo.Client) *m
 	return col
 }
 
-func (m *Connector) CountDocuments(ctx context.Context, col *mongo.Collection, lastID string) (int64, error) {
-	filter := bson.M{}
-	if lastID != "" {
-		lastID := lastID
-		filter["_id"] = bson.M{"$gt": lastID}
-	}
-	ctx, cancel := context.WithTimeout(ctx, m.countDocQueryTimeout*time.Second)
-	defer cancel()
-	count, err := col.CountDocuments(ctx, filter)
-	if err != nil {
-		m.logger.Error("mongo.connector.count-document.error",
-			"error", err,
-		)
-		return 0, err
-	}
-	m.logger.Info("mongo.connector.connecting.collection.success")
-	return count, nil
-}
 func (m *Connector) retry(ctx context.Context) (*mongo.Client, error) {
 	for i := 0; i < m.attempts; i++ {
 		ctx, cancel := context.WithTimeout(ctx, m.connectTimeout*time.Second)
