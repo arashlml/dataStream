@@ -12,12 +12,13 @@ type Config struct {
 }
 
 type Storage struct {
-	logger *slog.Logger
-	path   string
+	logger  *slog.Logger
+	path    string
+	metrics *metrics.Metrics
 }
 
-func NewStorage(logger *slog.Logger, path string) *Storage {
-	return &Storage{logger: logger, path: path}
+func NewStorage(logger *slog.Logger, path string, metrics *metrics.Metrics) *Storage {
+	return &Storage{logger: logger, path: path, metrics: metrics}
 }
 
 func (s *Storage) Save(lastInsertedID string) error {
@@ -27,6 +28,7 @@ func (s *Storage) Save(lastInsertedID string) error {
 			"state.OpenFile.failed",
 			"error", err,
 		)
+		s.metrics.ErrorCounter.WithLabelValues("storage.save.open_file", lastInsertedID, err.Error()).Inc()
 		return err
 	}
 	defer f.Close()
@@ -38,6 +40,7 @@ func (s *Storage) Save(lastInsertedID string) error {
 			"_id", lastInsertedID,
 			"error", err,
 		)
+		s.metrics.ErrorCounter.WithLabelValues("storage.save.write_file", lastInsertedID, err.Error()).Inc()
 		return err
 	}
 	defer writer.Flush()
@@ -49,6 +52,7 @@ func (s *Storage) LoadLastID() (string, error) {
 	f, err := os.Open(s.path)
 	if err != nil {
 		s.logger.Error("state.readFromFile.open.failed", "error", err)
+		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.open_file", "", err.Error()).Inc()
 		return "", err
 	}
 	defer f.Close()
@@ -57,6 +61,7 @@ func (s *Storage) LoadLastID() (string, error) {
 	rows, err := reader.ReadAll()
 	if err != nil {
 		s.logger.Error("state.readFromFile.read.failed", "error", err)
+		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.read_all", "", err.Error()).Inc()
 		return "", err
 	}
 
@@ -67,6 +72,7 @@ func (s *Storage) LoadLastID() (string, error) {
 	last := rows[len(rows)-1]
 	if len(last) == 0 || last[0] == "" {
 		s.logger.Error("state.readFromFile.invalid.row", "row", last)
+		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.invalid_row", "", "invalid row in last_inserted_id.csv").Inc()
 		return "", nil
 	}
 

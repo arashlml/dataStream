@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/arashlml/mongo-reader/metrics"
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
@@ -29,10 +30,11 @@ type Connector struct {
 	attempts    int
 	logger      *slog.Logger
 	pingTimeout time.Duration
+	metrics     *metrics.Metrics
 }
 
-func NewConnector(uri string, username string, password string, logger *slog.Logger, pingTimeout time.Duration) *Connector {
-	return &Connector{uri: uri, username: username, password: password, logger: logger, pingTimeout: pingTimeout}
+func NewConnector(uri string, username string, password string, logger *slog.Logger, pingTimeout time.Duration, metrics *metrics.Metrics) *Connector {
+	return &Connector{uri: uri, username: username, password: password, logger: logger, pingTimeout: pingTimeout, metrics: metrics}
 }
 
 func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) {
@@ -52,6 +54,7 @@ func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) 
 		e.logger.Error("Elastic.connector.new.Client.error",
 			"error", err,
 		)
+		e.metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.new_client", "", err.Error()).Inc()
 		return nil, err
 	}
 
@@ -63,6 +66,7 @@ func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) 
 		e.logger.Error("Elastic.connector.pinging.server.error",
 			"error", err,
 		)
+		e.metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.ping_failed", "", err.Error()).Inc()
 		return nil, err
 	}
 
@@ -72,6 +76,7 @@ func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) 
 		e.logger.Error("Elastic.connector.pinging.server.error",
 			"error", res.String(),
 		)
+		e.metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.ping_response_error", "", res.String()).Inc()
 		return nil, fmt.Errorf("ping error: %s", res.Status())
 	}
 	e.logger.Info("Elastic.connector.connecting.server.success")

@@ -6,29 +6,22 @@ import (
 )
 
 type Metrics struct {
-	TotalDocuments        prometheus.Gauge
-	TotalReadDocuments    *prometheus.CounterVec
+	TotalReadDocuments    prometheus.Counter
 	TotalWrittenDocuments prometheus.Counter
 	TotalFailedDocuments  prometheus.Counter
-	TotalAttempts         prometheus.Counter
 	ReadDuration          prometheus.Histogram
 	WriteDuration         prometheus.Histogram
+	ErrorCounter          *prometheus.CounterVec
 }
 
 func New(namespace, subsystem string) *Metrics {
 	m := Metrics{
-		TotalDocuments: promauto.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "total_documents",
-			Help:      "Total number of documents to be processed.",
-		}),
-		TotalReadDocuments: promauto.NewCounterVec(prometheus.CounterOpts{
+		TotalReadDocuments: promauto.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "read_documents_total",
 			Help:      "Total number of documents read from the source.",
-		}, []string{"uri", "path"}),
+		}),
 		TotalWrittenDocuments: promauto.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
@@ -40,12 +33,6 @@ func New(namespace, subsystem string) *Metrics {
 			Subsystem: subsystem,
 			Name:      "failed_documents_total",
 			Help:      "Total number of documents that failed to be written.",
-		}),
-		TotalAttempts: promauto.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "attempts_total",
-			Help:      "Total number of processing attempts.",
 		}),
 		ReadDuration: promauto.NewHistogram(prometheus.HistogramOpts{
 			Namespace: namespace,
@@ -61,6 +48,12 @@ func New(namespace, subsystem string) *Metrics {
 			Help:      "The duration of how long it took to complete a write.",
 			Buckets:   prometheus.ExponentialBuckets(0.001, 2, 15),
 		}),
+		ErrorCounter: promauto.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "errors_total",
+			Help:      "Total number of errors, labeled by service, last_id, and error_message.",
+		}, []string{"service_name", "last_id", "error_message"}),
 	}
 	prometheus.MustRegister(m.WriteDuration)
 	return &m

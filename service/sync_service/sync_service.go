@@ -57,6 +57,7 @@ func (s *SyncService) readLoop(ctx context.Context) {
 		batch, err := s.reader.Read(ctx)
 		if err != nil {
 			s.logger.Error("sync.service.readLoops.error", "error", err)
+			s.metrics.ErrorCounter.WithLabelValues("sync_service.read_loop.read_failed", "", err.Error()).Inc()
 		}
 		if batch == nil {
 			s.logger.Info("sync.service.readLoops.emptyBatch")
@@ -77,6 +78,7 @@ func (s *SyncService) writeLoop(ctx context.Context) {
 				"error", err,
 				"_id", lastID,
 			)
+			s.metrics.ErrorCounter.WithLabelValues("sync_service.write_loop.write_failed", lastID, err.Error()).Inc()
 		}
 	}
 }

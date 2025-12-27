@@ -27,7 +27,7 @@ func startMetricsServer(port string) {
 		http.Handle("/metrics", promhttp.Handler())
 		log.Printf("Metrics server starting on port %s", port)
 		if err := http.ListenAndServe(":"+port, nil); err != nil {
-			log.Fatalf("Failed to start metrics.go server: %v", err)
+			log.Fatalf("Failed to start metrics server: %v", err)
 		}
 	}()
 }
@@ -44,21 +44,24 @@ func main() {
 	logger := slog.New(logHandler)
 	if err := k.Load(file.Provider("config/config.yaml"), yaml.Parser()); err != nil {
 		logger.Error("error loading config: ", err)
+		appMetrics.ErrorCounter.WithLabelValues("main.load_config", "", err.Error()).Inc()
 	}
 
 	var cfg config.Config
 	if err := k.Unmarshal("", &cfg); err != nil {
 		logger.Error("error unmarshalling config: ", err)
+		appMetrics.ErrorCounter.WithLabelValues("main.unmarshal_config", "", err.Error()).Inc()
 	}
 
-	store := storage.NewStorage(logger, cfg.Storage.FilePath)
+	store := storage.NewStorage(logger, cfg.Storage.FilePath, appMetrics)
 
-	MongoConnector := mongorepository.NewConnector(cfg.Mongo.Uri, cfg.Mongo.Username, cfg.Mongo.Password, cfg.Mongo.Db, cfg.Mongo.Collection, cfg.Mongo.Attempts, logger, cfg.Mongo.PingTimeout, cfg.Mongo.CountDocQueryTimeout, cfg.Mongo.ConnectTimeout)
+	MongoConnector := mongorepository.NewConnector(cfg.Mongo.Uri, cfg.Mongo.Username, cfg.Mongo.Password, cfg.Mongo.Db, cfg.Mongo.Collection, cfg.Mongo.Attempts, logger, cfg.Mongo.PingTimeout, cfg.Mongo.CountDocQueryTimeout, cfg.Mongo.ConnectTimeout, appMetrics)
 	col, err := MongoConnector.ConnectAndMakeCollection(context.Background())
 	if err != nil {
 		logger.Error("main.connecting.mongo.server.failed",
 			"error", err,
 		)
+		appMetrics.ErrorCounter.WithLabelValues("main.connect_mongo", "", err.Error()).Inc()
 	}
 
 	it := mongoiterator.NewIterator(col, cfg.Mongo.BatchSize, logger, cfg.Mongo.IDType, cfg.Mongo.ReadTimeout, appMetrics)
@@ -71,6 +74,7 @@ func main() {
 			"main.connecting.elastic.server.failed",
 			"error", err,
 		)
+		appMetrics.ErrorCounter.WithLabelValues("main.connect_elastic", "", err.Error()).Inc()
 	}
 
 	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, logger, cfg.Elastic.Index, cfg.Elastic.InsertTimeout, cfg.Elastic.RetryAttempts, cfg.Elastic.RetryInterval, appMetrics)
