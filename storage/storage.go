@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/arashlml/mongo-reader/metrics"
 )
 
 type Config struct {

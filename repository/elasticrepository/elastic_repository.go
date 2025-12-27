@@ -182,7 +182,7 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch *dto.RawCollec
 	}
 	elapsed := time.Since(start)
 	e.metrics.WriteDuration.Observe(elapsed.Seconds())
-
+	e.metrics.TotalWrittenOperations.Add(1)
 	return nil
 }
 func (e *ElasticRepository) retry(ctx context.Context, buf bytes.Buffer, lastID string) {

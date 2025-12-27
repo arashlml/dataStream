@@ -95,6 +95,7 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 	}
 	elapsed := time.Since(start)
 	i.metrics.ReadDuration.Observe(elapsed.Seconds())
+	i.metrics.TotalReadOperations.Add(1)
 	i.hasNext = i.batchSize == int64(len(i.batch))
 	convertedBatch := i.ConvertedBatch()
 	return &convertedBatch, nil

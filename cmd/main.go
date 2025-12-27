@@ -55,7 +55,7 @@ func main() {
 
 	store := storage.NewStorage(logger, cfg.Storage.FilePath, appMetrics)
 
-	MongoConnector := mongorepository.NewConnector(cfg.Mongo.Uri, cfg.Mongo.Username, cfg.Mongo.Password, cfg.Mongo.Db, cfg.Mongo.Collection, cfg.Mongo.Attempts, logger, cfg.Mongo.PingTimeout, cfg.Mongo.CountDocQueryTimeout, cfg.Mongo.ConnectTimeout, appMetrics)
+	MongoConnector := mongorepository.NewConnector(cfg.Mongo.Uri, cfg.Mongo.Username, cfg.Mongo.Password, cfg.Mongo.Db, cfg.Mongo.Collection, cfg.Mongo.Attempts, logger, cfg.Mongo.PingTimeout, cfg.Mongo.CountDocQueryTimeout, cfg.Mongo.ConnectTimeout)
 	col, err := MongoConnector.ConnectAndMakeCollection(context.Background())
 	if err != nil {
 		logger.Error("main.connecting.mongo.server.failed",
@@ -66,7 +66,7 @@ func main() {
 
 	it := mongoiterator.NewIterator(col, cfg.Mongo.BatchSize, logger, cfg.Mongo.IDType, cfg.Mongo.ReadTimeout, appMetrics)
 
-	elasticConnector := elasticrepository.NewConnector(cfg.Elastic.Uri, cfg.Elastic.Username, cfg.Elastic.Password, logger, cfg.Elastic.PingTimeout)
+	elasticConnector := elasticrepository.NewConnector(cfg.Elastic.Uri, cfg.Elastic.Username, cfg.Elastic.Password, logger, cfg.Elastic.PingTimeout, appMetrics)
 
 	elasticClient, err := elasticConnector.Connect(context.Background())
 	if err != nil {

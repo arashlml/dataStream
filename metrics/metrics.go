@@ -6,12 +6,14 @@ import (
 )
 
 type Metrics struct {
-	TotalReadDocuments    prometheus.Counter
-	TotalWrittenDocuments prometheus.Counter
-	TotalFailedDocuments  prometheus.Counter
-	ReadDuration          prometheus.Histogram
-	WriteDuration         prometheus.Histogram
-	ErrorCounter          *prometheus.CounterVec
+	TotalReadDocuments     prometheus.Counter
+	TotalWrittenDocuments  prometheus.Counter
+	TotalFailedDocuments   prometheus.Counter
+	ReadDuration           prometheus.Histogram
+	WriteDuration          prometheus.Histogram
+	TotalReadOperations    prometheus.Counter
+	TotalWrittenOperations prometheus.Counter
+	ErrorCounter           *prometheus.CounterVec
 }
 
 func New(namespace, subsystem string) *Metrics {
@@ -54,6 +56,18 @@ func New(namespace, subsystem string) *Metrics {
 			Name:      "errors_total",
 			Help:      "Total number of errors, labeled by service, last_id, and error_message.",
 		}, []string{"service_name", "last_id", "error_message"}),
+		TotalReadOperations: promauto.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "read_operations_total",
+			Help:      "Total number of read operations.",
+		}),
+		TotalWrittenOperations: promauto.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "written_operations_total",
+			Help:      "Total number of write operations.",
+		}),
 	}
 	prometheus.MustRegister(m.WriteDuration)
 	return &m

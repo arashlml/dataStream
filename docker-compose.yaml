@@ -34,6 +34,8 @@ services:
       - ./metrics/prometheus.yaml:/etc/prometheus/prometheus.yml
     depends_on:
       - mongo-reader
+      - mongo-exporter
+      - elasticsearch-exporter
 
   grafana:
     image: grafana/grafana-oss:latest
@@ -44,6 +46,24 @@ services:
       - grafana-storage:/var/lib/grafana
     depends_on:
       - prometheus
+
+  mongo-exporter:
+    image: percona/mongodb_exporter:0.47.2
+    ports:
+      - "9216:9216"
+    command:
+      - "--mongodb.uri=mongodb://mongodb:27017"
+    depends_on:
+      - mongodb
+
+  elasticsearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter
+    ports:
+      - "9114:9114"
+    command:
+      - '--es.uri=http://elastic:9200'
+    depends_on:
+      - elastic
 
 volumes:
   grafana-storage:
