@@ -19,15 +19,19 @@ type ElasticRepository struct {
 	logger        *slog.Logger
 	index         string
 	insertTimeOut time.Duration
+	retryAttempts int
+	retryInterval float64
 	metrics       *metrics.Metrics
 }
 
-func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, index string, insertTimeOut time.Duration, metrics *metrics.Metrics) *ElasticRepository {
+func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, index string, insertTimeOut time.Duration, retryAttempts int, retryInterval float64, metrics *metrics.Metrics) *ElasticRepository {
 	r := &ElasticRepository{
 		client:        client,
 		logger:        logger,
 		index:         index,
 		insertTimeOut: insertTimeOut,
+		retryAttempts: retryAttempts,
+		retryInterval: retryInterval,
 		metrics:       metrics,
 	}
 
@@ -107,10 +111,10 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch *dto.RawCollec
 			"error", err,
 		)
 	}
-	ctx, cancel := context.WithTimeout(ctx, e.insertTimeOut*time.Second)
+	insertCtx, cancel := context.WithTimeout(ctx, e.insertTimeOut*time.Second)
 	res, err := e.client.Bulk(
 		bytes.NewReader(buf.Bytes()),
-		e.client.Bulk.WithContext(ctx),
+		e.client.Bulk.WithContext(insertCtx),
 	)
 	cancel()
 	if err != nil {
@@ -119,6 +123,7 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch *dto.RawCollec
 			"error", err,
 			"_id", lastID,
 		)
+		e.retry(ctx, buf, lastID)
 		return err
 	}
 	defer res.Body.Close()
@@ -155,4 +160,29 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch *dto.RawCollec
 
 	}
 	return nil
+}
+func (e *ElasticRepository) retry(ctx context.Context, buf bytes.Buffer, lastID string) {
+	for attempt := 0; attempt <= e.retryAttempts; attempt++ {
+		retryCtx, cancel := context.WithTimeout(ctx, e.insertTimeOut*time.Second)
+		res, err := e.client.Bulk(
+			bytes.NewReader(buf.Bytes()),
+			e.client.Bulk.WithContext(retryCtx),
+		)
+		cancel()
+		if err == nil && !res.IsError() {
+			e.logger.Info("elastic.repository.bulk.request.retry.successes",
+				"attempt", attempt,
+				"_id", lastID)
+		}
+		for attempt < e.retryAttempts {
+			select {
+			case <-time.After(time.Duration(float64(attempt)*e.retryInterval) * time.Second):
+				e.logger.Error("elastic.repository.bulk.request.retry.error",
+					"attempt", attempt,
+					"error", err,
+					"_id", lastID)
+				continue
+			}
+		}
+	}
 }

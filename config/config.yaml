@@ -7,7 +7,7 @@ service:
   bufferSize : 10 # channel size
 mongo :
   # "mongodb://host.docker.internal:27018"
-  uri: "mongodb://localhost:27017"
+  uri: "mongodb://mongodb:27017"
   #username: "root"
   username: ""
   #password: "39325b03649f3c34013338cb"
@@ -22,11 +22,12 @@ mongo :
   readTimeout: 2
   idType: "ObjectID"
 elastic:
-  uri: "http://localhost:9200"
+  uri: "http://elastic:9200"
   username: "elastic"
-  password: "mJquAU0Sa2cgYSyz2bnf"
+  #password: "mJquAU0Sa2cgYSyz2bnf"
+  password: ""
   index: "users"
   attempts : 5
   pingTimeout : 5
-  insertTimeout: 10
+  insertTimeout: 30
   retryInterval: 5

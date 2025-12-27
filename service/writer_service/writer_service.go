@@ -44,8 +44,10 @@ func (s *WriterService) Write(ctx context.Context, batch *dto.RawCollection) err
 			"last.ID", batch.LastItemID())
 	}
 	atomic.AddInt64(&s.writeCounter, int64(batch.Len()))
-	s.logger.Info("writer.service.store.write.success",
-		"last.ID", batch.LastItemID(),
-		"witer.Counter", atomic.LoadInt64(&s.writeCounter))
+	if atomic.LoadInt64(&s.writeCounter)%10000 == 0 {
+		s.logger.Info("writer.service.store.write.success",
+			"last.ID", batch.LastItemID(),
+			"witer.Counter", atomic.LoadInt64(&s.writeCounter))
+	}
 	return nil
 }

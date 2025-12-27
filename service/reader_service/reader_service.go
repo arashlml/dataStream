@@ -57,9 +57,12 @@ func (r *ReaderService) Read(ctx context.Context) (*dto.RawCollection, error) {
 		return nil, nil
 	}
 	r.lastID = batch.LastItemID()
-	r.logger.Info("read.service.read.counter",
-		"lastID", r.lastID,
-		"readCounter", atomic.LoadInt64(&r.readCounter),
-	)
+	if atomic.LoadInt64(&r.readCounter)%10000 == 0 {
+
+		r.logger.Info("read.service.read.counter",
+			"lastID", r.lastID,
+			"readCounter", atomic.LoadInt64(&r.readCounter),
+		)
+	}
 	return batch, nil
 }

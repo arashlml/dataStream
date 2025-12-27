@@ -23,12 +23,14 @@ type Config struct {
 }
 
 type Connector struct {
-	uri         string
-	username    string
-	password    string
-	attempts    int
-	logger      *slog.Logger
-	pingTimeout time.Duration
+	uri           string
+	username      string
+	password      string
+	attempts      int
+	logger        *slog.Logger
+	pingTimeout   time.Duration
+	retryAttempts int
+	retryInterval time.Duration
 }
 
 func NewConnector(uri string, username string, password string, attempts int, logger *slog.Logger, pingTimeout time.Duration) *Connector {
