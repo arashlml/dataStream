@@ -63,8 +63,8 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 		}
 		filter["_id"] = bson.M{"$gt": id}
 	}
-	ctx, cancel := context.WithTimeout(ctx, i.readTimeout*time.Second)
-	defer cancel()
+	ctx, _ := context.WithTimeout(ctx, i.readTimeout*time.Second)
+
 	opts := options.Find().
 		SetSort(bson.M{"_id": 1}).
 		SetLimit(i.batchSize)

@@ -63,7 +63,7 @@ func main() {
 
 	it := mongoiterator.NewIterator(col, cfg.Mongo.BatchSize, logger, cfg.Mongo.IDType, cfg.Mongo.ReadTimeout, appMetrics)
 
-	elasticConnector := elasticrepository.NewConnector(cfg.Elastic.Uri, cfg.Elastic.Username, cfg.Elastic.Password, cfg.Elastic.Attempts, logger, cfg.Elastic.PingTimeout)
+	elasticConnector := elasticrepository.NewConnector(cfg.Elastic.Uri, cfg.Elastic.Username, cfg.Elastic.Password, logger, cfg.Elastic.PingTimeout)
 
 	elasticClient, err := elasticConnector.Connect(context.Background())
 	if err != nil {
@@ -73,7 +73,7 @@ func main() {
 		)
 	}
 
-	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, logger, cfg.Elastic.Index, cfg.Elastic.InsertTimeout, appMetrics)
+	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, logger, cfg.Elastic.Index, cfg.Elastic.InsertTimeout, cfg.Elastic.RetryAttempts, cfg.Elastic.RetryInterval, appMetrics)
 
 	readService := reader_service.New(store, it, appMetrics, logger)
 

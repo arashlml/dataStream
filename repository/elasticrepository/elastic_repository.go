@@ -111,12 +111,20 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch *dto.RawCollec
 			"error", err,
 		)
 	}
-	insertCtx, cancel := context.WithTimeout(ctx, e.insertTimeOut*time.Second)
+	insertCtx, _ := context.WithTimeout(ctx, e.insertTimeOut*time.Second)
 	res, err := e.client.Bulk(
 		bytes.NewReader(buf.Bytes()),
 		e.client.Bulk.WithContext(insertCtx),
 	)
-	cancel()
+	if insertCtx.Err() != nil {
+		e.logger.Error(
+			"elastic.repository.bulk.request.failed",
+			"error", insertCtx.Err(),
+			"_id", lastID,
+		)
+		e.retry(ctx, buf, lastID)
+		return insertCtx.Err()
+	}
 	if err != nil {
 		e.logger.Error(
 			"elastic.repository.bulk.request.failed",
@@ -163,18 +171,18 @@ func (e *ElasticRepository) BulkInsert(ctx context.Context, batch *dto.RawCollec
 }
 func (e *ElasticRepository) retry(ctx context.Context, buf bytes.Buffer, lastID string) {
 	for attempt := 0; attempt <= e.retryAttempts; attempt++ {
-		retryCtx, cancel := context.WithTimeout(ctx, e.insertTimeOut*time.Second)
+		retryCtx, _ := context.WithTimeout(ctx, e.insertTimeOut*time.Second)
 		res, err := e.client.Bulk(
 			bytes.NewReader(buf.Bytes()),
 			e.client.Bulk.WithContext(retryCtx),
 		)
-		cancel()
 		if err == nil && !res.IsError() {
 			e.logger.Info("elastic.repository.bulk.request.retry.successes",
 				"attempt", attempt,
 				"_id", lastID)
+			return
 		}
-		for attempt < e.retryAttempts {
+		if attempt < e.retryAttempts {
 			<-time.After(time.Duration(float64(attempt)*e.retryInterval) * time.Second)
 			e.logger.Error("elastic.repository.bulk.request.retry.error",
 				"attempt", attempt,
@@ -182,5 +190,6 @@ func (e *ElasticRepository) retry(ctx context.Context, buf bytes.Buffer, lastID 
 				"_id", lastID)
 			continue
 		}
+		return
 	}
 }

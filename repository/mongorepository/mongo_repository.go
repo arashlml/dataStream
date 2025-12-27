@@ -54,8 +54,7 @@ func NewConnector(uri, username, password, dbName, collectionName string, attemp
 }
 
 func (m *Connector) ConnectAndMakeCollection(ctx context.Context) (*mongo.Collection, error) {
-	connectCtx, cancel := context.WithTimeout(ctx, m.connectTimeout*time.Second)
-	defer cancel()
+	connectCtx, _ := context.WithTimeout(ctx, m.connectTimeout*time.Second)
 	connOpts := options.Client().ApplyURI(m.uri)
 	if m.username != "" || m.password != "" {
 		connOpts = connOpts.SetAuth(options.Credential{Username: m.username, Password: m.password})
@@ -73,8 +72,7 @@ func (m *Connector) ConnectAndMakeCollection(ctx context.Context) (*mongo.Collec
 		}
 		return nil, err
 	}
-	PingCtx, PingCancel := context.WithTimeout(ctx, m.pingTimeout*time.Second)
-	defer PingCancel()
+	PingCtx, _ := context.WithTimeout(ctx, m.pingTimeout*time.Second)
 	if err := client.Ping(PingCtx, nil); err != nil {
 		m.logger.Error("mongo.connect.pinging.server.error",
 			"error", err)
@@ -93,9 +91,8 @@ func (m *Connector) MakeCollection(ctx context.Context, client *mongo.Client) *m
 
 func (m *Connector) retry(ctx context.Context) (*mongo.Client, error) {
 	for i := 0; i < m.attempts; i++ {
-		ctx, cancel := context.WithTimeout(ctx, m.connectTimeout*time.Second)
-		client, err := mongo.Connect(ctx, options.Client().ApplyURI(m.uri).SetAuth(options.Credential{Username: m.username, Password: m.password}))
-		cancel()
+		connectCtx, _ := context.WithTimeout(ctx, m.connectTimeout*time.Second)
+		client, err := mongo.Connect(connectCtx, options.Client().ApplyURI(m.uri).SetAuth(options.Credential{Username: m.username, Password: m.password}))
 		if err == nil {
 			log.Println("mongo.connect.connecting.success")
 			return client, nil

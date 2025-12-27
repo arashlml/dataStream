@@ -16,25 +16,23 @@ type Config struct {
 	Username      string        `koanf:"username"`
 	Password      string        `koanf:"password"`
 	Index         string        `koanf:"index"`
-	Attempts      int           `koanf:"attempts"`
+	RetryAttempts int           `koanf:"retryAttempts"`
 	PingTimeout   time.Duration `koanf:"pingTimeout"`
 	InsertTimeout time.Duration `koanf:"insertTimeout"`
-	RetryInterval time.Duration `koanf:"retryInterval"`
+	RetryInterval float64       `koanf:"retryInterval"`
 }
 
 type Connector struct {
-	uri           string
-	username      string
-	password      string
-	attempts      int
-	logger        *slog.Logger
-	pingTimeout   time.Duration
-	retryAttempts int
-	retryInterval time.Duration
+	uri         string
+	username    string
+	password    string
+	attempts    int
+	logger      *slog.Logger
+	pingTimeout time.Duration
 }
 
-func NewConnector(uri string, username string, password string, attempts int, logger *slog.Logger, pingTimeout time.Duration) *Connector {
-	return &Connector{uri: uri, username: username, password: password, attempts: attempts, logger: logger, pingTimeout: pingTimeout}
+func NewConnector(uri string, username string, password string, logger *slog.Logger, pingTimeout time.Duration) *Connector {
+	return &Connector{uri: uri, username: username, password: password, logger: logger, pingTimeout: pingTimeout}
 }
 
 func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) {
@@ -57,16 +55,14 @@ func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) 
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, e.pingTimeout*time.Second)
+	pingCtx, _ := context.WithTimeout(ctx, e.pingTimeout*time.Second)
 
-	res, err := es.Ping(es.Ping.WithContext(ctx))
-	cancel()
+	res, err := es.Ping(es.Ping.WithContext(pingCtx))
 
 	if err != nil {
 		e.logger.Error("Elastic.connector.pinging.server.error",
 			"error", err,
 		)
-		cancel()
 		return nil, err
 	}
 

@@ -27,7 +27,7 @@ elastic:
   #password: "mJquAU0Sa2cgYSyz2bnf"
   password: ""
   index: "users"
-  attempts : 5
+  retryAttempts : 5
   pingTimeout : 5
-  insertTimeout: 30
+  insertTimeout: 5
   retryInterval: 5
