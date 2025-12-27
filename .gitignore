@@ -20,3 +20,4 @@
 # vendor/
 
 mongo-data/
+last_inserted_id.csv

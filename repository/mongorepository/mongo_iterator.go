@@ -63,14 +63,13 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 		}
 		filter["_id"] = bson.M{"$gt": id}
 	}
-	ctx, _ := context.WithTimeout(ctx, i.readTimeout*time.Second)
-
+	readCtx, _ := context.WithTimeout(ctx, i.readTimeout*time.Second)
 	opts := options.Find().
 		SetSort(bson.M{"_id": 1}).
 		SetLimit(i.batchSize)
 	var err error
-
-	i.cursor, err = i.col.Find(ctx, filter, opts)
+	start := time.Now()
+	i.cursor, err = i.col.Find(readCtx, filter, opts)
 	if err != nil {
 		i.logger.Error("mongo.col.Find().error",
 			"error", err,
@@ -78,17 +77,18 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 		)
 		return nil, err
 	}
-	defer i.cursor.Close(ctx)
+	defer i.cursor.Close(readCtx)
 	i.batch = []bson.M{}
 
-	if err := i.cursor.All(ctx, &i.batch); err != nil {
+	if err := i.cursor.All(readCtx, &i.batch); err != nil {
 		i.logger.Error("mongo.cursor.all.error",
 			"error", err,
 			"_id", lastID,
 		)
 		return nil, err
 	}
-
+	elapsed := time.Since(start)
+	i.metrics.ReadDuration.Observe(elapsed.Seconds())
 	i.hasNext = i.batchSize == int64(len(i.batch))
 	convertedBatch := i.ConvertedBatch()
 	return &convertedBatch, nil
