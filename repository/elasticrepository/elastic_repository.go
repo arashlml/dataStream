@@ -175,14 +175,12 @@ func (e *ElasticRepository) retry(ctx context.Context, buf bytes.Buffer, lastID 
 				"_id", lastID)
 		}
 		for attempt < e.retryAttempts {
-			select {
-			case <-time.After(time.Duration(float64(attempt)*e.retryInterval) * time.Second):
-				e.logger.Error("elastic.repository.bulk.request.retry.error",
-					"attempt", attempt,
-					"error", err,
-					"_id", lastID)
-				continue
-			}
+			<-time.After(time.Duration(float64(attempt)*e.retryInterval) * time.Second)
+			e.logger.Error("elastic.repository.bulk.request.retry.error",
+				"attempt", attempt,
+				"error", err,
+				"_id", lastID)
+			continue
 		}
 	}
 }
