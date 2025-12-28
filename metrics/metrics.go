@@ -55,7 +55,8 @@ func New(namespace, subsystem string) *Metrics {
 			Subsystem: subsystem,
 			Name:      "errors_total",
 			Help:      "Total number of errors, labeled by service, last_id, and error_message.",
-		}, []string{"service_name", "last_id", "error_message"}),
+		}, []string{"service_name", "error_message"}),
+
 		TotalReadOperations: promauto.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,

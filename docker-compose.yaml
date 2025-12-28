@@ -2,7 +2,7 @@ services:
   mongodb:
     image: mongo:8.0
     ports:
-      - 27017:27017
+      - "27017:27017"
     volumes:
       - ./mongo-data:/data/db
 
@@ -48,11 +48,11 @@ services:
       - prometheus
 
   mongo-exporter:
-    image: percona/mongodb_exporter:0.47.2
+    image: percona/mongodb_exporter:0.40
     ports:
       - "9216:9216"
-    command:
-      - "--mongodb.uri=mongodb://mongodb:27017"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
     depends_on:
       - mongodb
 

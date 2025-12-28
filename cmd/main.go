@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	"fmt"
+
 	"github.com/arashlml/mongo-reader/config"
 	"github.com/arashlml/mongo-reader/metrics"
 	"github.com/arashlml/mongo-reader/repository/elasticrepository"
@@ -16,11 +18,25 @@ import (
 	syncservice "github.com/arashlml/mongo-reader/service/sync_service"
 	"github.com/arashlml/mongo-reader/service/writer_service"
 	"github.com/arashlml/mongo-reader/storage"
+	"github.com/go-playground/validator/v10"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+func validateConfig(cfg config.Config) error {
+	validate := validator.New()
+	err := validate.Struct(cfg)
+	if err != nil {
+		var errorMsg string
+		for _, err := range err.(validator.ValidationErrors) {
+			errorMsg += fmt.Sprintf("Field validation for '%s' failed on the '%s' tag; ", err.StructNamespace(), err.Tag())
+		}
+		return fmt.Errorf("configuration validation failed: %s", errorMsg)
+	}
+	return nil
+}
 
 func startMetricsServer(port string) {
 	go func() {
@@ -44,13 +60,17 @@ func main() {
 	logger := slog.New(logHandler)
 	if err := k.Load(file.Provider("config/config.yaml"), yaml.Parser()); err != nil {
 		logger.Error("error loading config: ", err)
-		appMetrics.ErrorCounter.WithLabelValues("main.load_config", "", err.Error()).Inc()
+		appMetrics.ErrorCounter.WithLabelValues("main.load_config", err.Error()).Inc()
 	}
 
 	var cfg config.Config
 	if err := k.Unmarshal("", &cfg); err != nil {
 		logger.Error("error unmarshalling config: ", err)
-		appMetrics.ErrorCounter.WithLabelValues("main.unmarshal_config", "", err.Error()).Inc()
+		appMetrics.ErrorCounter.WithLabelValues("main.unmarshal_config", err.Error()).Inc()
+	}
+
+	if err := validateConfig(cfg); err != nil {
+		log.Fatalf("Configuration error: %v", err)
 	}
 
 	store := storage.NewStorage(logger, cfg.Storage.FilePath, appMetrics)
@@ -61,12 +81,12 @@ func main() {
 		logger.Error("main.connecting.mongo.server.failed",
 			"error", err,
 		)
-		appMetrics.ErrorCounter.WithLabelValues("main.connect_mongo", "", err.Error()).Inc()
+		appMetrics.ErrorCounter.WithLabelValues("main.connect_mongo", err.Error()).Inc()
 	}
 
 	it := mongoiterator.NewIterator(col, cfg.Mongo.BatchSize, logger, cfg.Mongo.IDType, cfg.Mongo.ReadTimeout, appMetrics)
 
-	elasticConnector := elasticrepository.NewConnector(cfg.Elastic.Uri, cfg.Elastic.Username, cfg.Elastic.Password, logger, cfg.Elastic.PingTimeout, appMetrics)
+	elasticConnector := elasticrepository.NewConnector(cfg.Elastic.Uri, cfg.Elastic.Username, cfg.Elastic.Password, cfg.Elastic.Index, logger, cfg.Elastic.PingTimeout, appMetrics)
 
 	elasticClient, err := elasticConnector.Connect(context.Background())
 	if err != nil {
@@ -74,7 +94,7 @@ func main() {
 			"main.connecting.elastic.server.failed",
 			"error", err,
 		)
-		appMetrics.ErrorCounter.WithLabelValues("main.connect_elastic", "", err.Error()).Inc()
+		appMetrics.ErrorCounter.WithLabelValues("main.connect_elastic", err.Error()).Inc()
 	}
 
 	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, logger, cfg.Elastic.Index, cfg.Elastic.InsertTimeout, cfg.Elastic.RetryAttempts, cfg.Elastic.RetryInterval, appMetrics)

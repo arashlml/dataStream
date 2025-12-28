@@ -48,7 +48,7 @@ func (i *Iterator) ConvertID(lastID string) (interface{}, error) {
 	case "String":
 		return lastID, nil
 	default:
-		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.convert_id.unsupported_type", "", "unsupported ID type").Inc()
+		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.convert_id.unsupported_type", "unsupported ID type").Inc()
 		return nil, fmt.Errorf("unsupported ID type")
 	}
 }
@@ -61,7 +61,7 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 			i.logger.Error("repository.mongo.iterator.convert.id.error",
 				"error", err,
 				"lastID", lastID)
-			i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.convert_id", lastID, err.Error()).Inc()
+			i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.convert_id", err.Error()).Inc()
 			return nil, err
 		}
 
@@ -79,7 +79,7 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 			"error", err,
 			"_id", lastID,
 		)
-		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.find", lastID, err.Error()).Inc()
+		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.find", err.Error()).Inc()
 		return nil, err
 	}
 	defer i.cursor.Close(readCtx)
@@ -90,7 +90,7 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 			"error", err,
 			"_id", lastID,
 		)
-		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.cursor_all", lastID, err.Error()).Inc()
+		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.cursor_all", err.Error()).Inc()
 		return nil, err
 	}
 	elapsed := time.Since(start)

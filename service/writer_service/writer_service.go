@@ -35,7 +35,7 @@ func (s *WriterService) Write(ctx context.Context, batch *dto.RawCollection) err
 		s.logger.Error("writer.service.bulk.insert.error",
 			"error", err,
 			"last.ID", batch.LastItemID())
-		s.metric.ErrorCounter.WithLabelValues("writer_service.write.bulk_insert", batch.LastItemID(), err.Error()).Inc()
+		s.metric.ErrorCounter.WithLabelValues("writer_service.write.bulk_insert", err.Error()).Inc()
 		return err
 	}
 	err = s.store.Save(batch.LastItemID())
@@ -43,7 +43,7 @@ func (s *WriterService) Write(ctx context.Context, batch *dto.RawCollection) err
 		s.logger.Error("writer.service.store.write.error",
 			"error", err,
 			"last.ID", batch.LastItemID())
-		s.metric.ErrorCounter.WithLabelValues("writer_service.write.store_save", batch.LastItemID(), err.Error()).Inc()
+		s.metric.ErrorCounter.WithLabelValues("writer_service.write.store_save", err.Error()).Inc()
 		return err
 	}
 	atomic.AddInt64(&s.writeCounter, int64(batch.Len()))

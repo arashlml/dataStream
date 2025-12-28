@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	FilePath string `koanf:"filePath"`
+	FilePath string `koanf:"filePath" validate:"required"`
 }
 
 type Storage struct {
@@ -54,7 +54,7 @@ func (s *Storage) LoadLastID() (string, error) {
 	f, err := os.Open(s.path)
 	if err != nil {
 		s.logger.Error("state.readFromFile.open.failed", "error", err)
-		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.open_file", "", err.Error()).Inc()
+		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.open_file", err.Error()).Inc()
 		return "", err
 	}
 	defer f.Close()
@@ -63,7 +63,7 @@ func (s *Storage) LoadLastID() (string, error) {
 	rows, err := reader.ReadAll()
 	if err != nil {
 		s.logger.Error("state.readFromFile.read.failed", "error", err)
-		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.read_all", "", err.Error()).Inc()
+		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.read_all", err.Error()).Inc()
 		return "", err
 	}
 
@@ -74,7 +74,7 @@ func (s *Storage) LoadLastID() (string, error) {
 	last := rows[len(rows)-1]
 	if len(last) == 0 || last[0] == "" {
 		s.logger.Error("state.readFromFile.invalid.row", "row", last)
-		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.invalid_row", "", "invalid row in last_inserted_id.csv").Inc()
+		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.invalid_row", "invalid row in last_inserted_id.csv").Inc()
 		return "", nil
 	}
 

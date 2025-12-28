@@ -13,14 +13,14 @@ import (
 )
 
 type Config struct {
-	Uri           string        `koanf:"uri"`
+	Uri           string        `koanf:"uri" validate:"required,uri"`
 	Username      string        `koanf:"username"`
 	Password      string        `koanf:"password"`
-	Index         string        `koanf:"index"`
-	RetryAttempts int           `koanf:"retryAttempts"`
-	PingTimeout   time.Duration `koanf:"pingTimeout"`
-	InsertTimeout time.Duration `koanf:"insertTimeout"`
-	RetryInterval float64       `koanf:"retryInterval"`
+	Index         string        `koanf:"index" validate:"required"`
+	RetryAttempts int           `koanf:"retryAttempts" validate:"gte=0"`
+	PingTimeout   time.Duration `koanf:"pingTimeout" validate:"gte=0"`
+	InsertTimeout time.Duration `koanf:"insertTimeout" validate:"gte=0"`
+	RetryInterval float64       `koanf:"retryInterval" validate:"gte=0"`
 }
 
 type Connector struct {
@@ -28,13 +28,14 @@ type Connector struct {
 	username    string
 	password    string
 	attempts    int
+	index       string
 	logger      *slog.Logger
 	pingTimeout time.Duration
 	metrics     *metrics.Metrics
 }
 
-func NewConnector(uri string, username string, password string, logger *slog.Logger, pingTimeout time.Duration, metrics *metrics.Metrics) *Connector {
-	return &Connector{uri: uri, username: username, password: password, logger: logger, pingTimeout: pingTimeout, metrics: metrics}
+func NewConnector(uri string, username string, password string, index string, logger *slog.Logger, pingTimeout time.Duration, metrics *metrics.Metrics) *Connector {
+	return &Connector{uri: uri, username: username, password: password, index: index, logger: logger, pingTimeout: pingTimeout, metrics: metrics}
 }
 
 func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) {
@@ -79,6 +80,7 @@ func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) 
 		e.metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.ping_response_error", "", res.String()).Inc()
 		return nil, fmt.Errorf("ping error: %s", res.Status())
 	}
+	
 	e.logger.Info("Elastic.connector.connecting.server.success")
 	return es, nil
 }

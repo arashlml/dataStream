@@ -38,7 +38,7 @@ func New(store Storage, iterator Iterator, metrics *metrics.Metrics, logger *slo
 	if err != nil {
 		r.logger.Error("service.reader.service.new.loadLastID.error",
 			"error", err.Error())
-		r.metric.ErrorCounter.WithLabelValues("reader_service.new.load_last_id", "", err.Error()).Inc()
+		r.metric.ErrorCounter.WithLabelValues("reader_service.new.load_last_id", err.Error()).Inc()
 	}
 	r.lastID = lastID
 	return r
@@ -50,7 +50,7 @@ func (r *ReaderService) Read(ctx context.Context) (*dto.RawCollection, error) {
 		r.logger.Error("read.service.next.error",
 			"error", err,
 			"lastID", r.lastID)
-		r.metric.ErrorCounter.WithLabelValues("reader_service.read.iterator_next", r.lastID, err.Error()).Inc()
+		r.metric.ErrorCounter.WithLabelValues("reader_service.read.iterator_next", err.Error()).Inc()
 		return nil, err
 	}
 	atomic.AddInt64(&r.readCounter, int64(batch.Len()))
