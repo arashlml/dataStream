@@ -1,10 +1,9 @@
 storage:
   filePath: "last_inserted_id.csv"
-state:
-  resumeCapability: true
-  attempts : 5
-service:
+sync_service:
   bufferSize : 10 # channel size
+read_service:
+  resumeCapability: false
 mongo :
   # "mongodb://host.docker.internal:27018"
   uri: "mongodb://mongodb:27017"

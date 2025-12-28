@@ -17,6 +17,7 @@ import (
 	"github.com/arashlml/mongo-reader/service/reader_service"
 	syncservice "github.com/arashlml/mongo-reader/service/sync_service"
 	"github.com/arashlml/mongo-reader/service/writer_service"
+	"github.com/arashlml/mongo-reader/stateTracking"
 	"github.com/arashlml/mongo-reader/storage"
 	"github.com/go-playground/validator/v10"
 	"github.com/knadh/koanf/parsers/yaml"
@@ -83,29 +84,34 @@ func main() {
 		)
 		appMetrics.ErrorCounter.WithLabelValues("main.connect_mongo", err.Error()).Inc()
 	}
+	for batchSize := 500; batchSize <= 10_000; batchSize = batchSize + 500 {
 
-	it := mongoiterator.NewIterator(col, cfg.Mongo.BatchSize, logger, cfg.Mongo.IDType, cfg.Mongo.ReadTimeout, appMetrics)
+		it := mongoiterator.NewIterator(col, cfg.Mongo.BatchSize, logger, cfg.Mongo.IDType, cfg.Mongo.ReadTimeout, appMetrics)
 
-	elasticConnector := elasticrepository.NewConnector(cfg.Elastic.Uri, cfg.Elastic.Username, cfg.Elastic.Password, cfg.Elastic.Index, logger, cfg.Elastic.PingTimeout, appMetrics)
+		elasticConnector := elasticrepository.NewConnector(cfg.Elastic.Uri, cfg.Elastic.Username, cfg.Elastic.Password, cfg.Elastic.Index, logger, cfg.Elastic.PingTimeout, appMetrics)
 
-	elasticClient, err := elasticConnector.Connect(context.Background())
-	if err != nil {
-		logger.Error(
-			"main.connecting.elastic.server.failed",
-			"error", err,
-		)
-		appMetrics.ErrorCounter.WithLabelValues("main.connect_elastic", err.Error()).Inc()
+		elasticClient, err := elasticConnector.Connect(context.Background())
+		if err != nil {
+			logger.Error(
+				"main.connecting.elastic.server.failed",
+				"error", err,
+			)
+			appMetrics.ErrorCounter.WithLabelValues("main.connect_elastic", err.Error()).Inc()
+		}
+
+		elasticRepo := elasticrepository.NewElasticRepository(elasticClient, logger, cfg.Elastic.Index, cfg.Elastic.InsertTimeout, cfg.Elastic.RetryAttempts, cfg.Elastic.RetryInterval, appMetrics)
+
+		readService := reader_service.New(store, it, appMetrics, logger, cfg.ReadService.ResumeCapability)
+
+		writeService := writer_service.New(store, elasticRepo, appMetrics, logger)
+
+		tracker := stateTracking.NewTracker(batchSize, "benchmark.cdv", logger)
+
+		service := syncservice.NewSyncService(readService, writeService, logger, cfg.SyncService.BufferSize, appMetrics, tracker)
+		service.Start()
+		service.Wait()
+		logger.Info("migration is finished")
+		logger.Info("shutting down the application...")
+
 	}
-
-	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, logger, cfg.Elastic.Index, cfg.Elastic.InsertTimeout, cfg.Elastic.RetryAttempts, cfg.Elastic.RetryInterval, appMetrics)
-
-	readService := reader_service.New(store, it, appMetrics, logger)
-
-	writeService := writer_service.New(store, elasticRepo, appMetrics, logger)
-
-	service := syncservice.NewSyncService(readService, writeService, logger, cfg.Service.BufferSize, appMetrics)
-	service.Start()
-	service.Wait()
-	logger.Info("migration is finished")
-	logger.Info("shutting down the application...")
 }

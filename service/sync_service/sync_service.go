@@ -7,6 +7,7 @@ import (
 
 	"github.com/arashlml/mongo-reader/dto"
 	"github.com/arashlml/mongo-reader/metrics"
+	"github.com/arashlml/mongo-reader/stateTracking"
 )
 
 type Config struct {
@@ -29,9 +30,10 @@ type SyncService struct {
 	logger              *slog.Logger
 	backPressureChannel chan *dto.RawCollection
 	metrics             *metrics.Metrics
+	tracker             *stateTracking.Tracker
 }
 
-func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, bufferSize int, metrics *metrics.Metrics) *SyncService {
+func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, bufferSize int, metrics *metrics.Metrics, tracker *stateTracking.Tracker) *SyncService {
 	s := &SyncService{
 		reader:              reader,
 		writer:              writer,
@@ -41,6 +43,7 @@ func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, bufferSiz
 		logger:              logger,
 		metrics:             metrics,
 		backPressureChannel: make(chan *dto.RawCollection, bufferSize),
+		tracker:             tracker,
 	}
 	return s
 }
@@ -53,6 +56,7 @@ func (s *SyncService) Start() {
 func (s *SyncService) readLoop(ctx context.Context) {
 	defer s.wg.Done()
 	defer close(s.backPressureChannel)
+	s.tracker.PutStart()
 	for {
 		batch, err := s.reader.Read(ctx)
 		if err != nil {
@@ -69,6 +73,7 @@ func (s *SyncService) readLoop(ctx context.Context) {
 
 func (s *SyncService) writeLoop(ctx context.Context) {
 	defer s.wg.Done()
+	defer s.tracker.PutEnd()
 	for batch := range s.backPressureChannel {
 		lastID := batch.LastItemID()
 		err := s.writer.Write(ctx, batch)
