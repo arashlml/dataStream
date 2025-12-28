@@ -34,7 +34,7 @@ func (t *Tracker) Save(batchSize int, elapsed time.Duration) error {
 	f, err := os.OpenFile(t.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		t.logger.Error(
-			"state.OpenFile.failed",
+			"stateTracker.OpenFile.failed",
 			"error", err,
 		)
 		return err
