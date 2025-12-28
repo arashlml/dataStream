@@ -1,4 +1,4 @@
-module github.com/arashlml/mongo-reader
+module github.com/arashlml/data-stream
 
 go 1.25.3
 

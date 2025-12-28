@@ -9,15 +9,15 @@ import (
 
 	"fmt"
 
-	"github.com/arashlml/mongo-reader/config"
-	"github.com/arashlml/mongo-reader/metrics"
-	"github.com/arashlml/mongo-reader/repository/elasticrepository"
-	"github.com/arashlml/mongo-reader/repository/mongorepository"
-	mongoiterator "github.com/arashlml/mongo-reader/repository/mongorepository"
-	"github.com/arashlml/mongo-reader/service/reader_service"
-	syncservice "github.com/arashlml/mongo-reader/service/sync_service"
-	"github.com/arashlml/mongo-reader/service/writer_service"
-	"github.com/arashlml/mongo-reader/storage"
+	"github.com/arashlml/data-stream/config"
+	"github.com/arashlml/data-stream/metrics"
+	"github.com/arashlml/data-stream/repository/elasticrepository"
+	"github.com/arashlml/data-stream/repository/mongorepository"
+	mongoiterator "github.com/arashlml/data-stream/repository/mongorepository"
+	"github.com/arashlml/data-stream/service/reader_service"
+	syncservice "github.com/arashlml/data-stream/service/sync_service"
+	"github.com/arashlml/data-stream/service/writer_service"
+	"github.com/arashlml/data-stream/storage"
 	"github.com/go-playground/validator/v10"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
@@ -99,11 +99,11 @@ func main() {
 
 	elasticRepo := elasticrepository.NewElasticRepository(elasticClient, logger, cfg.Elastic.Index, cfg.Elastic.InsertTimeout, cfg.Elastic.RetryAttempts, cfg.Elastic.RetryInterval, appMetrics)
 
-	readService := reader_service.New(store, it, appMetrics, logger)
+	readService := reader_service.New(store, it, appMetrics, logger, cfg.ReadService.ResumeCapability)
 
 	writeService := writer_service.New(store, elasticRepo, appMetrics, logger)
 
-	service := syncservice.NewSyncService(readService, writeService, logger, cfg.Service.BufferSize, appMetrics)
+	service := syncservice.NewSyncService(readService, writeService, logger, cfg.SyncService.BufferSize, appMetrics)
 	service.Start()
 	service.Wait()
 	logger.Info("migration is finished")

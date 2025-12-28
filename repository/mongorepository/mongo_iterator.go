@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/arashlml/mongo-reader/dto"
-	"github.com/arashlml/mongo-reader/metrics"
+	"github.com/arashlml/data-stream/dto"
+	"github.com/arashlml/data-stream/metrics"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"

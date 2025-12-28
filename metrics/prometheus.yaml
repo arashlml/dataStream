@@ -4,7 +4,7 @@ global:
 scrape_configs:
   - job_name: 'mongo-reader'
     static_configs:
-      - targets: ['mongo-reader:9091']
+      - targets: ['data-stream:9091']
 
   - job_name: "mongo"
     static_configs:

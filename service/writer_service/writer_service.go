@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"github.com/arashlml/mongo-reader/dto"
-	"github.com/arashlml/mongo-reader/metrics"
+	"github.com/arashlml/data-stream/dto"
+	"github.com/arashlml/data-stream/metrics"
 )
 
 type Repository interface {

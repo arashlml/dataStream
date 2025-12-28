@@ -16,7 +16,7 @@ services:
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
 
-  mongo-reader:
+  data-stream:
     build: .
     volumes:
       - .:/app
@@ -33,7 +33,7 @@ services:
     volumes:
       - ./metrics/prometheus.yaml:/etc/prometheus/prometheus.yml
     depends_on:
-      - mongo-reader
+      - data-stream
       - mongo-exporter
       - elasticsearch-exporter
 

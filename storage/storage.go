@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/arashlml/mongo-reader/metrics"
+	"github.com/arashlml/data-stream/metrics"
 )
 
 type Config struct {

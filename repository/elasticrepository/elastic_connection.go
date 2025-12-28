@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/arashlml/mongo-reader/metrics"
+	"github.com/arashlml/data-stream/metrics"
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
@@ -80,7 +80,7 @@ func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) 
 		e.metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.ping_response_error", "", res.String()).Inc()
 		return nil, fmt.Errorf("ping error: %s", res.Status())
 	}
-	
+
 	e.logger.Info("Elastic.connector.connecting.server.success")
 	return es, nil
 }

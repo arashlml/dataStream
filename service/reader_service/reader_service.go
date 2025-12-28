@@ -5,10 +5,13 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"github.com/arashlml/mongo-reader/dto"
-	"github.com/arashlml/mongo-reader/metrics"
+	"github.com/arashlml/data-stream/dto"
+	"github.com/arashlml/data-stream/metrics"
 )
 
+type Config struct {
+	ResumeCapability bool `koanf:"resume_capability" validate:"oneof=true false"`
+}
 type Storage interface {
 	LoadLastID() (string, error)
 }
@@ -25,22 +28,26 @@ type ReaderService struct {
 	iterator    Iterator
 	metric      *metrics.Metrics
 	logger      *slog.Logger
+	resumeCap   bool
 }
 
-func New(store Storage, iterator Iterator, metrics *metrics.Metrics, logger *slog.Logger) *ReaderService {
+func New(store Storage, iterator Iterator, metrics *metrics.Metrics, logger *slog.Logger, resumeCap bool) *ReaderService {
 	r := &ReaderService{
-		store:    store,
-		iterator: iterator,
-		metric:   metrics,
-		logger:   logger,
+		store:     store,
+		iterator:  iterator,
+		metric:    metrics,
+		logger:    logger,
+		resumeCap: resumeCap,
 	}
-	lastID, err := r.store.LoadLastID()
-	if err != nil {
-		r.logger.Error("service.reader.service.new.loadLastID.error",
-			"error", err.Error())
-		r.metric.ErrorCounter.WithLabelValues("reader_service.new.load_last_id", err.Error()).Inc()
+	if resumeCap {
+		lastID, err := r.store.LoadLastID()
+		if err != nil {
+			r.logger.Error("service.reader.service.new.loadLastID.error",
+				"error", err.Error())
+			r.metric.ErrorCounter.WithLabelValues("reader_service.new.load_last_id", err.Error()).Inc()
+		}
+		r.lastID = lastID
 	}
-	r.lastID = lastID
 	return r
 }
 

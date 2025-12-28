@@ -22,3 +22,4 @@
 mongo-data/
 last_inserted_id.csv
 @gemini.md
+benchmark.csv
