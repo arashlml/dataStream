@@ -5,12 +5,12 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/arashlml/mongo-reader/dto"
-	"github.com/arashlml/mongo-reader/metrics"
+	"github.com/arashlml/data-stream/dto"
+	"github.com/arashlml/data-stream/metrics"
 )
 
 type Config struct {
-	BufferSize int `koanf:"bufferSize"`
+	BufferSize int `koanf:"bufferSize" validate:"gt=0"`
 }
 type Reader interface {
 	Read(ctx context.Context) (*dto.RawCollection, error)
@@ -31,7 +31,7 @@ type SyncService struct {
 	metrics             *metrics.Metrics
 }
 
-func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, bufferSize int, metrics *metrics.Metrics) *SyncService {
+func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, metrics *metrics.Metrics, config Config) *SyncService {
 	s := &SyncService{
 		reader:              reader,
 		writer:              writer,
@@ -40,7 +40,7 @@ func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, bufferSiz
 		wg:                  &sync.WaitGroup{},
 		logger:              logger,
 		metrics:             metrics,
-		backPressureChannel: make(chan *dto.RawCollection, bufferSize),
+		backPressureChannel: make(chan *dto.RawCollection, config.BufferSize),
 	}
 	return s
 }
@@ -55,12 +55,13 @@ func (s *SyncService) readLoop(ctx context.Context) {
 	defer close(s.backPressureChannel)
 	for {
 		batch, err := s.reader.Read(ctx)
+		if batch == nil {
+			s.logger.Info("sync.service.empty.batch")
+			return
+		}
 		if err != nil {
 			s.logger.Error("sync.service.readLoops.error", "error", err)
-		}
-		if batch == nil {
-			s.logger.Info("sync.service.readLoops.emptyBatch")
-			return
+			s.metrics.ErrorCounter.WithLabelValues("sync_service.read_loop.read_failed", err.Error()).Inc()
 		}
 		s.backPressureChannel <- batch
 	}
@@ -77,6 +78,7 @@ func (s *SyncService) writeLoop(ctx context.Context) {
 				"error", err,
 				"_id", lastID,
 			)
+			s.metrics.ErrorCounter.WithLabelValues("sync_service.write_loop.write_failed", err.Error()).Inc()
 		}
 	}
 }

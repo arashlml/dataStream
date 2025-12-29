@@ -1,4 +1,4 @@
-package mongorepository
+package mongo_repository
 
 import (
 	"context"
@@ -12,18 +12,18 @@ import (
 )
 
 type Config struct {
-	Uri                  string        `koanf:"uri"`
+	Uri                  string        `koanf:"uri" validate:"required,uri"`
 	Username             string        `koanf:"username"`
 	Password             string        `koanf:"password"`
-	Db                   string        `koanf:"db"`
-	Collection           string        `koanf:"collection"`
-	Attempts             int           `koanf:"attempts"`
-	BatchSize            int64         `koanf:"batchSize"`
-	PingTimeout          time.Duration `koanf:"pingTimeout"`
-	CountDocQueryTimeout time.Duration `koanf:"countDocTimeout"`
-	ConnectTimeout       time.Duration `koanf:"connectTimeout"`
-	ReadTimeout          time.Duration `koanf:"readTimeout"`
-	IDType               string        `koanf:"idType"`
+	Db                   string        `koanf:"db" validate:"required"`
+	Collection           string        `koanf:"collection" validate:"required"`
+	Attempts             int           `koanf:"attempts" validate:"gte=0"`
+	BatchSize            int64         `koanf:"batchSize" validate:"gt=0"`
+	PingTimeout          time.Duration `koanf:"pingTimeout" validate:"gte=0"`
+	CountDocQueryTimeout time.Duration `koanf:"countDocTimeout" validate:"gte=0"`
+	ConnectTimeout       time.Duration `koanf:"connectTimeout" validate:"gte=0"`
+	ReadTimeout          time.Duration `koanf:"readTimeout" validate:"gte=0"`
+	IDType               string        `koanf:"idType" validate:"required,oneof=ObjectID String"`
 }
 type Connector struct {
 	uri                  string
@@ -38,24 +38,23 @@ type Connector struct {
 	connectTimeout       time.Duration
 }
 
-func NewConnector(uri, username, password, dbName, collectionName string, attempts int, logger *slog.Logger, pingTimeout time.Duration, countDocQueryTimeout time.Duration, connectTimeout time.Duration) *Connector {
+func NewConnector(logger *slog.Logger, config Config) *Connector {
 	return &Connector{
-		uri:                  uri,
-		username:             username,
-		password:             password,
-		dbName:               dbName,
-		collectionName:       collectionName,
-		attempts:             attempts,
+		uri:                  config.Uri,
+		username:             config.Username,
+		password:             config.Password,
+		dbName:               config.Db,
+		collectionName:       config.Collection,
+		attempts:             config.Attempts,
 		logger:               logger,
-		pingTimeout:          pingTimeout,
-		countDocQueryTimeout: countDocQueryTimeout,
-		connectTimeout:       connectTimeout,
+		pingTimeout:          config.PingTimeout,
+		countDocQueryTimeout: config.CountDocQueryTimeout,
+		connectTimeout:       config.ConnectTimeout,
 	}
 }
 
 func (m *Connector) ConnectAndMakeCollection(ctx context.Context) (*mongo.Collection, error) {
-	connectCtx, cancel := context.WithTimeout(ctx, m.connectTimeout*time.Second)
-	defer cancel()
+	connectCtx, _ := context.WithTimeout(ctx, m.connectTimeout*time.Second)
 	connOpts := options.Client().ApplyURI(m.uri)
 	if m.username != "" || m.password != "" {
 		connOpts = connOpts.SetAuth(options.Credential{Username: m.username, Password: m.password})
@@ -73,8 +72,7 @@ func (m *Connector) ConnectAndMakeCollection(ctx context.Context) (*mongo.Collec
 		}
 		return nil, err
 	}
-	PingCtx, PingCancel := context.WithTimeout(ctx, m.pingTimeout*time.Second)
-	defer PingCancel()
+	PingCtx, _ := context.WithTimeout(ctx, m.pingTimeout*time.Second)
 	if err := client.Ping(PingCtx, nil); err != nil {
 		m.logger.Error("mongo.connect.pinging.server.error",
 			"error", err)
@@ -93,9 +91,8 @@ func (m *Connector) MakeCollection(ctx context.Context, client *mongo.Client) *m
 
 func (m *Connector) retry(ctx context.Context) (*mongo.Client, error) {
 	for i := 0; i < m.attempts; i++ {
-		ctx, cancel := context.WithTimeout(ctx, m.connectTimeout*time.Second)
-		client, err := mongo.Connect(ctx, options.Client().ApplyURI(m.uri).SetAuth(options.Credential{Username: m.username, Password: m.password}))
-		cancel()
+		connectCtx, _ := context.WithTimeout(ctx, m.connectTimeout*time.Second)
+		client, err := mongo.Connect(connectCtx, options.Client().ApplyURI(m.uri).SetAuth(options.Credential{Username: m.username, Password: m.password}))
 		if err == nil {
 			log.Println("mongo.connect.connecting.success")
 			return client, nil

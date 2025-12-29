@@ -1,4 +1,4 @@
-package mongorepository
+package mongo_repository
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/arashlml/mongo-reader/dto"
-	"github.com/arashlml/mongo-reader/metrics"
+	"github.com/arashlml/data-stream/dto"
+	"github.com/arashlml/data-stream/metrics"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -26,17 +26,14 @@ type Iterator struct {
 	metrics     *metrics.Metrics
 }
 
-func NewIterator(col *mongo.Collection, batchSize int64, logger *slog.Logger, idType string, readTimeout time.Duration, metrics *metrics.Metrics) *Iterator {
-	if batchSize <= 0 {
-		batchSize = 50
-	}
+func NewIterator(col *mongo.Collection, logger *slog.Logger, metrics *metrics.Metrics, config Config) *Iterator {
 	i := &Iterator{
 		col:         col,
-		batchSize:   batchSize,
+		batchSize:   config.BatchSize,
 		hasNext:     true,
 		logger:      logger,
-		idType:      idType,
-		readTimeout: readTimeout,
+		idType:      config.IDType,
+		readTimeout: config.ReadTimeout,
 		metrics:     metrics,
 	}
 	return i
@@ -48,6 +45,7 @@ func (i *Iterator) ConvertID(lastID string) (interface{}, error) {
 	case "String":
 		return lastID, nil
 	default:
+		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.convert_id.unsupported_type", "unsupported ID type").Inc()
 		return nil, fmt.Errorf("unsupported ID type")
 	}
 }
@@ -60,35 +58,41 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 			i.logger.Error("repository.mongo.iterator.convert.id.error",
 				"error", err,
 				"lastID", lastID)
+			i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.convert_id", err.Error()).Inc()
+			return nil, err
 		}
+
 		filter["_id"] = bson.M{"$gt": id}
 	}
-	ctx, cancel := context.WithTimeout(ctx, i.readTimeout*time.Second)
-	defer cancel()
+	readCtx, _ := context.WithTimeout(ctx, i.readTimeout*time.Second)
 	opts := options.Find().
 		SetSort(bson.M{"_id": 1}).
 		SetLimit(i.batchSize)
 	var err error
-
-	i.cursor, err = i.col.Find(ctx, filter, opts)
+	start := time.Now()
+	i.cursor, err = i.col.Find(readCtx, filter, opts)
 	if err != nil {
 		i.logger.Error("mongo.col.Find().error",
 			"error", err,
 			"_id", lastID,
 		)
+		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.find", err.Error()).Inc()
 		return nil, err
 	}
-	defer i.cursor.Close(ctx)
+	defer i.cursor.Close(readCtx)
 	i.batch = []bson.M{}
 
-	if err := i.cursor.All(ctx, &i.batch); err != nil {
+	if err := i.cursor.All(readCtx, &i.batch); err != nil {
 		i.logger.Error("mongo.cursor.all.error",
 			"error", err,
 			"_id", lastID,
 		)
+		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.cursor_all", err.Error()).Inc()
 		return nil, err
 	}
-
+	elapsed := time.Since(start)
+	i.metrics.ReadDuration.Observe(elapsed.Seconds())
+	i.metrics.TotalReadOperations.Add(1)
 	i.hasNext = i.batchSize == int64(len(i.batch))
 	convertedBatch := i.ConvertedBatch()
 	return &convertedBatch, nil

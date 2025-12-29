@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"github.com/arashlml/mongo-reader/dto"
-	"github.com/arashlml/mongo-reader/metrics"
+	"github.com/arashlml/data-stream/dto"
+	"github.com/arashlml/data-stream/metrics"
 )
 
 type Repository interface {
@@ -35,6 +35,7 @@ func (s *WriterService) Write(ctx context.Context, batch *dto.RawCollection) err
 		s.logger.Error("writer.service.bulk.insert.error",
 			"error", err,
 			"last.ID", batch.LastItemID())
+		s.metric.ErrorCounter.WithLabelValues("writer_service.write.bulk_insert", err.Error()).Inc()
 		return err
 	}
 	err = s.store.Save(batch.LastItemID())
@@ -42,8 +43,11 @@ func (s *WriterService) Write(ctx context.Context, batch *dto.RawCollection) err
 		s.logger.Error("writer.service.store.write.error",
 			"error", err,
 			"last.ID", batch.LastItemID())
+		s.metric.ErrorCounter.WithLabelValues("writer_service.write.store_save", err.Error()).Inc()
+		return err
 	}
 	atomic.AddInt64(&s.writeCounter, int64(batch.Len()))
+	s.metric.TotalWrittenDocuments.Add(float64(batch.Len()))
 	if atomic.LoadInt64(&s.writeCounter)%10000 == 0 {
 		s.logger.Info("writer.service.store.write.success",
 			"last.ID", batch.LastItemID(),

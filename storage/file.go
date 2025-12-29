@@ -5,28 +5,32 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/arashlml/data-stream/metrics"
 )
 
 type Config struct {
-	FilePath string `koanf:"filePath"`
+	FilePath string `koanf:"filePath" validate:"required"`
 }
 
-type Storage struct {
-	logger *slog.Logger
-	path   string
+type FileStorage struct {
+	logger  *slog.Logger
+	path    string
+	metrics *metrics.Metrics
 }
 
-func NewStorage(logger *slog.Logger, path string) *Storage {
-	return &Storage{logger: logger, path: path}
+func NewStorage(logger *slog.Logger, metrics *metrics.Metrics, config Config) *FileStorage {
+	return &FileStorage{logger: logger, path: config.FilePath, metrics: metrics}
 }
 
-func (s *Storage) Save(lastInsertedID string) error {
+func (s *FileStorage) Save(lastInsertedID string) error {
 	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		s.logger.Error(
 			"state.OpenFile.failed",
 			"error", err,
 		)
+		s.metrics.ErrorCounter.WithLabelValues("storage.save.open_file", lastInsertedID, err.Error()).Inc()
 		return err
 	}
 	defer f.Close()
@@ -38,6 +42,7 @@ func (s *Storage) Save(lastInsertedID string) error {
 			"_id", lastInsertedID,
 			"error", err,
 		)
+		s.metrics.ErrorCounter.WithLabelValues("storage.save.write_file", lastInsertedID, err.Error()).Inc()
 		return err
 	}
 	defer writer.Flush()
@@ -45,10 +50,11 @@ func (s *Storage) Save(lastInsertedID string) error {
 	return nil
 }
 
-func (s *Storage) LoadLastID() (string, error) {
+func (s *FileStorage) LoadLastID() (string, error) {
 	f, err := os.Open(s.path)
 	if err != nil {
 		s.logger.Error("state.readFromFile.open.failed", "error", err)
+		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.open_file", err.Error()).Inc()
 		return "", err
 	}
 	defer f.Close()
@@ -57,6 +63,7 @@ func (s *Storage) LoadLastID() (string, error) {
 	rows, err := reader.ReadAll()
 	if err != nil {
 		s.logger.Error("state.readFromFile.read.failed", "error", err)
+		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.read_all", err.Error()).Inc()
 		return "", err
 	}
 
@@ -67,6 +74,7 @@ func (s *Storage) LoadLastID() (string, error) {
 	last := rows[len(rows)-1]
 	if len(last) == 0 || last[0] == "" {
 		s.logger.Error("state.readFromFile.invalid.row", "row", last)
+		s.metrics.ErrorCounter.WithLabelValues("storage.load_last_id.invalid_row", "invalid row in last_inserted_id.csv").Inc()
 		return "", nil
 	}
 

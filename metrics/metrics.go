@@ -1,34 +1,42 @@
 package metrics
 
 import (
+	"log"
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Metrics struct {
-	TotalDocuments        prometheus.Gauge
-	TotalReadDocuments    *prometheus.CounterVec
-	TotalWrittenDocuments prometheus.Counter
-	TotalFailedDocuments  prometheus.Counter
-	TotalAttempts         prometheus.Counter
-	ReadDuration          prometheus.Histogram
-	WriteDuration         prometheus.Histogram
+	TotalReadDocuments     prometheus.Counter
+	TotalWrittenDocuments  prometheus.Counter
+	TotalFailedDocuments   prometheus.Counter
+	ReadDuration           prometheus.Histogram
+	WriteDuration          prometheus.Histogram
+	TotalReadOperations    prometheus.Counter
+	TotalWrittenOperations prometheus.Counter
+	ErrorCounter           *prometheus.CounterVec
 }
 
+func StartMetricsServer(port string) {
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		log.Printf("Metrics server starting on port %s", port)
+		if err := http.ListenAndServe(":"+port, nil); err != nil {
+			log.Fatalf("Failed to start metrics server: %v", err)
+		}
+	}()
+}
 func New(namespace, subsystem string) *Metrics {
 	m := Metrics{
-		TotalDocuments: promauto.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "total_documents",
-			Help:      "Total number of documents to be processed.",
-		}),
-		TotalReadDocuments: promauto.NewCounterVec(prometheus.CounterOpts{
+		TotalReadDocuments: promauto.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "read_documents_total",
 			Help:      "Total number of documents read from the source.",
-		}, []string{"uri", "path"}),
+		}),
 		TotalWrittenDocuments: promauto.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
@@ -40,12 +48,6 @@ func New(namespace, subsystem string) *Metrics {
 			Subsystem: subsystem,
 			Name:      "failed_documents_total",
 			Help:      "Total number of documents that failed to be written.",
-		}),
-		TotalAttempts: promauto.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "attempts_total",
-			Help:      "Total number of processing attempts.",
 		}),
 		ReadDuration: promauto.NewHistogram(prometheus.HistogramOpts{
 			Namespace: namespace,
@@ -60,6 +62,25 @@ func New(namespace, subsystem string) *Metrics {
 			Name:      "write_duration_seconds",
 			Help:      "The duration of how long it took to complete a write.",
 			Buckets:   prometheus.ExponentialBuckets(0.001, 2, 15),
+		}),
+		ErrorCounter: promauto.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "errors_total",
+			Help:      "Total number of errors, labeled by service, and error_message.",
+		}, []string{"service_name", "error_message"}),
+
+		TotalReadOperations: promauto.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "read_operations_total",
+			Help:      "Total number of read operations.",
+		}),
+		TotalWrittenOperations: promauto.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "written_operations_total",
+			Help:      "Total number of write operations.",
 		}),
 	}
 	prometheus.MustRegister(m.WriteDuration)
