@@ -109,6 +109,9 @@ func (e *ElasticRepository) Convertor(ctx context.Context, batch *dto.RawCollect
 }
 
 func (e *ElasticRepository) BulkInsert(ctx context.Context, batch *dto.RawCollection) error {
+	if len(batch.Raw()) == 0 {
+		return errors.New("empty batch")
+	}
 	buf, lastID, err := e.Convertor(ctx, batch)
 	if err != nil {
 		e.logger.Error("elastic.repository.bulkInsert.error",

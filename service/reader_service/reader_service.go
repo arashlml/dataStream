@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	ResumeCapability bool `koanf:"resume_capability" validate:"oneof=true false"`
+	ResumeCapability bool `koanf:"resume_capability"`
 }
 type Storage interface {
 	LoadLastID() (string, error)

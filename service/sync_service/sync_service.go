@@ -59,10 +59,6 @@ func (s *SyncService) readLoop(ctx context.Context) {
 			s.logger.Error("sync.service.readLoops.error", "error", err)
 			s.metrics.ErrorCounter.WithLabelValues("sync_service.read_loop.read_failed", err.Error()).Inc()
 		}
-		if batch == nil {
-			s.logger.Info("sync.service.readLoops.emptyBatch")
-			return
-		}
 		s.backPressureChannel <- batch
 	}
 }
