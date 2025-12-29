@@ -3,7 +3,7 @@ storage:
 sync-service:
   bufferSize : 10 # channel size
 read-service:
-  resume-capability: true
+  resume_capability: true
 mongo :
   # "mongodb://host.docker.internal:27018"
   uri: "mongodb://mongodb:27017"

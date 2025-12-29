@@ -31,13 +31,13 @@ type ReaderService struct {
 	resumeCap   bool
 }
 
-func New(store Storage, iterator Iterator, metrics *metrics.Metrics, logger *slog.Logger, Config Config) *ReaderService {
+func New(store Storage, iterator Iterator, metrics *metrics.Metrics, logger *slog.Logger, config Config) *ReaderService {
 	r := &ReaderService{
 		store:     store,
 		iterator:  iterator,
 		metric:    metrics,
 		logger:    logger,
-		resumeCap: Config.ResumeCapability,
+		resumeCap: config.ResumeCapability,
 	}
 	if r.resumeCap {
 		lastID, err := r.store.LoadLastID()
@@ -46,6 +46,7 @@ func New(store Storage, iterator Iterator, metrics *metrics.Metrics, logger *slo
 				"error", err.Error())
 			r.metric.ErrorCounter.WithLabelValues("reader_service.new.load_last_id", err.Error()).Inc()
 		}
+		r.logger.Info("service.reader.service.new.loadLastID.success", "lastID", lastID)
 		r.lastID = lastID
 	}
 	return r
