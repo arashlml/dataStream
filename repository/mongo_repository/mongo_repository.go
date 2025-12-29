@@ -1,4 +1,4 @@
-package mongorepository
+package mongo_repository
 
 import (
 	"context"
@@ -38,18 +38,18 @@ type Connector struct {
 	connectTimeout       time.Duration
 }
 
-func NewConnector(uri, username, password, dbName, collectionName string, attempts int, logger *slog.Logger, pingTimeout time.Duration, countDocQueryTimeout time.Duration, connectTimeout time.Duration) *Connector {
+func NewConnector(logger *slog.Logger, config Config) *Connector {
 	return &Connector{
-		uri:                  uri,
-		username:             username,
-		password:             password,
-		dbName:               dbName,
-		collectionName:       collectionName,
-		attempts:             attempts,
+		uri:                  config.Uri,
+		username:             config.Username,
+		password:             config.Password,
+		dbName:               config.Db,
+		collectionName:       config.Collection,
+		attempts:             config.Attempts,
 		logger:               logger,
-		pingTimeout:          pingTimeout,
-		countDocQueryTimeout: countDocQueryTimeout,
-		connectTimeout:       connectTimeout,
+		pingTimeout:          config.PingTimeout,
+		countDocQueryTimeout: config.CountDocQueryTimeout,
+		connectTimeout:       config.ConnectTimeout,
 	}
 }
 

@@ -1,4 +1,4 @@
-package elasticrepository
+package elastic_repository
 
 import (
 	"bytes"

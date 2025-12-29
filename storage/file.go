@@ -13,17 +13,17 @@ type Config struct {
 	FilePath string `koanf:"filePath" validate:"required"`
 }
 
-type Storage struct {
+type FileStorage struct {
 	logger  *slog.Logger
 	path    string
 	metrics *metrics.Metrics
 }
 
-func NewStorage(logger *slog.Logger, path string, metrics *metrics.Metrics) *Storage {
-	return &Storage{logger: logger, path: path, metrics: metrics}
+func NewStorage(logger *slog.Logger, metrics *metrics.Metrics, config Config) *FileStorage {
+	return &FileStorage{logger: logger, path: config.FilePath, metrics: metrics}
 }
 
-func (s *Storage) Save(lastInsertedID string) error {
+func (s *FileStorage) Save(lastInsertedID string) error {
 	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		s.logger.Error(
@@ -50,7 +50,7 @@ func (s *Storage) Save(lastInsertedID string) error {
 	return nil
 }
 
-func (s *Storage) LoadLastID() (string, error) {
+func (s *FileStorage) LoadLastID() (string, error) {
 	f, err := os.Open(s.path)
 	if err != nil {
 		s.logger.Error("state.readFromFile.open.failed", "error", err)

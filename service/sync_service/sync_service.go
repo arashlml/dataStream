@@ -31,7 +31,7 @@ type SyncService struct {
 	metrics             *metrics.Metrics
 }
 
-func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, bufferSize int, metrics *metrics.Metrics) *SyncService {
+func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, metrics *metrics.Metrics, config Config) *SyncService {
 	s := &SyncService{
 		reader:              reader,
 		writer:              writer,
@@ -40,7 +40,7 @@ func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, bufferSiz
 		wg:                  &sync.WaitGroup{},
 		logger:              logger,
 		metrics:             metrics,
-		backPressureChannel: make(chan *dto.RawCollection, bufferSize),
+		backPressureChannel: make(chan *dto.RawCollection, config.BufferSize),
 	}
 	return s
 }

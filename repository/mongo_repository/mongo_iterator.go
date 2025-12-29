@@ -1,4 +1,4 @@
-package mongorepository
+package mongo_repository
 
 import (
 	"context"
@@ -26,17 +26,14 @@ type Iterator struct {
 	metrics     *metrics.Metrics
 }
 
-func NewIterator(col *mongo.Collection, batchSize int64, logger *slog.Logger, idType string, readTimeout time.Duration, metrics *metrics.Metrics) *Iterator {
-	if batchSize <= 0 {
-		batchSize = 50
-	}
+func NewIterator(col *mongo.Collection, logger *slog.Logger, metrics *metrics.Metrics, config Config) *Iterator {
 	i := &Iterator{
 		col:         col,
-		batchSize:   batchSize,
+		batchSize:   config.BatchSize,
 		hasNext:     true,
 		logger:      logger,
-		idType:      idType,
-		readTimeout: readTimeout,
+		idType:      config.IDType,
+		readTimeout: config.ReadTimeout,
 		metrics:     metrics,
 	}
 	return i

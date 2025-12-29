@@ -1,8 +1,12 @@
 package metrics
 
 import (
+	"log"
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Metrics struct {
@@ -16,6 +20,15 @@ type Metrics struct {
 	ErrorCounter           *prometheus.CounterVec
 }
 
+func StartMetricsServer(port string) {
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		log.Printf("Metrics server starting on port %s", port)
+		if err := http.ListenAndServe(":"+port, nil); err != nil {
+			log.Fatalf("Failed to start metrics server: %v", err)
+		}
+	}()
+}
 func New(namespace, subsystem string) *Metrics {
 	m := Metrics{
 		TotalReadDocuments: promauto.NewCounter(prometheus.CounterOpts{
@@ -54,7 +67,7 @@ func New(namespace, subsystem string) *Metrics {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "errors_total",
-			Help:      "Total number of errors, labeled by service, last_id, and error_message.",
+			Help:      "Total number of errors, labeled by service, and error_message.",
 		}, []string{"service_name", "error_message"}),
 
 		TotalReadOperations: promauto.NewCounter(prometheus.CounterOpts{

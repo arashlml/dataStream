@@ -1,4 +1,4 @@
-package elasticrepository
+package elastic_repository
 
 import (
 	"context"
@@ -34,8 +34,8 @@ type Connector struct {
 	metrics     *metrics.Metrics
 }
 
-func NewConnector(uri string, username string, password string, index string, logger *slog.Logger, pingTimeout time.Duration, metrics *metrics.Metrics) *Connector {
-	return &Connector{uri: uri, username: username, password: password, index: index, logger: logger, pingTimeout: pingTimeout, metrics: metrics}
+func NewConnector(logger *slog.Logger, metrics *metrics.Metrics, config Config) *Connector {
+	return &Connector{uri: config.Uri, username: config.Username, password: config.Password, index: config.Index, logger: logger, pingTimeout: config.PingTimeout, metrics: metrics}
 }
 
 func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) {
