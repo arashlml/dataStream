@@ -50,14 +50,19 @@ func (i *Iterator) ConvertID(lastID string) (interface{}, error) {
 	}
 }
 
-func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection, error) {
+func (i *Iterator) Next(ctx context.Context, metaData dto.MetaData) (*dto.Collection, error) {
 	filter := bson.M{}
-	if lastID != "" {
+	if metaData["lastID"] != "" {
+		lastID, ok := metaData["lastID"].(string)
+		if !ok {
+			i.logger.Warn("repository.mongo.iterator.next.metaData[\"lastID\"].type.assertion.failed")
+			return nil, fmt.Errorf(`"lastID" must be a string`)
+		}
 		id, err := i.ConvertID(lastID)
 		if err != nil {
 			i.logger.Error("repository.mongo.iterator.convert.id.error",
 				"error", err,
-				"lastID", lastID)
+				"lastID", metaData["lastID"])
 			i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.convert_id", err.Error()).Inc()
 			return nil, err
 		}
@@ -74,7 +79,7 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 	if err != nil {
 		i.logger.Error("mongo.col.Find().error",
 			"error", err,
-			"_id", lastID,
+			"_id", metaData["lastID"],
 		)
 		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.find", err.Error()).Inc()
 		return nil, err
@@ -85,7 +90,7 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 	if err := i.cursor.All(readCtx, &i.batch); err != nil {
 		i.logger.Error("mongo.cursor.all.error",
 			"error", err,
-			"_id", lastID,
+			"_id", metaData["lastID"],
 		)
 		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.cursor_all", err.Error()).Inc()
 		return nil, err
@@ -98,12 +103,13 @@ func (i *Iterator) Next(ctx context.Context, lastID string) (*dto.RawCollection,
 	return &convertedBatch, nil
 }
 
-func (i *Iterator) ConvertedBatch() dto.RawCollection {
-	var convertedBatch []map[string]interface{}
+func (i *Iterator) ConvertedBatch() dto.Collection {
+	var convertedBatch dto.RawCollection
 	for _, doc := range i.batch {
 		convertedBatch = append(convertedBatch, doc)
 	}
-	return convertedBatch
+	collection := dto.Collection{RawCollection: convertedBatch.Raw(), MetaData: map[string]interface{}{"lastID": convertedBatch.LastItemID()}}
+	return collection
 }
 
 func (i *Iterator) HasNext(ctx context.Context) bool {

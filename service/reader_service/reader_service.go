@@ -13,16 +13,16 @@ type Config struct {
 	ResumeCapability bool `koanf:"resume_capability"`
 }
 type Storage interface {
-	LoadLastID() (string, error)
+	LoadMetaData() (dto.MetaData, error)
 }
 
 type Iterator interface {
-	Next(ctx context.Context, lastID string) (*dto.RawCollection, error)
+	Next(ctx context.Context, metaData dto.MetaData) (*dto.Collection, error)
 	HasNext(ctx context.Context) bool
 }
 
 type ReaderService struct {
-	lastID      string
+	metaData    dto.MetaData
 	readCounter int64
 	store       Storage
 	iterator    Iterator
@@ -40,40 +40,42 @@ func New(store Storage, iterator Iterator, metrics *metrics.Metrics, logger *slo
 		resumeCap: config.ResumeCapability,
 	}
 	if r.resumeCap {
-		lastID, err := r.store.LoadLastID()
+		metaData, err := r.store.LoadMetaData()
 		if err != nil {
 			r.logger.Error("service.reader.service.new.loadLastID.error",
 				"error", err.Error())
-			r.metric.ErrorCounter.WithLabelValues("reader_service.new.load_last_id", err.Error()).Inc()
+			r.metric.ErrorCounter.WithLabelValues("reader_service.new.LoadMetaData", err.Error()).Inc()
 		}
-		r.logger.Info("service.reader.service.new.loadLastID.success", "lastID", lastID)
-		r.lastID = lastID
+		r.logger.Info("service.reader.service.new.meta.data.success", "metadata", metaData)
+		r.metaData = metaData
 	}
 	return r
 }
 
-func (r *ReaderService) Read(ctx context.Context) (*dto.RawCollection, error) {
-	batch, err := r.iterator.Next(ctx, r.lastID)
+func (r *ReaderService) Read(ctx context.Context) (*dto.Collection, error) {
+	collection, err := r.iterator.Next(ctx, r.metaData)
 	if err != nil {
 		r.logger.Error("read.service.next.error",
 			"error", err,
-			"lastID", r.lastID)
+			"meta_meta", r.metaData)
 		r.metric.ErrorCounter.WithLabelValues("reader_service.read.iterator_next", err.Error()).Inc()
 		return nil, err
 	}
-	atomic.AddInt64(&r.readCounter, int64(batch.Len()))
-	r.metric.TotalReadDocuments.Add(float64(batch.Len()))
+	atomic.AddInt64(&r.readCounter, int64(collection.RawCollection.Len()))
+	r.metric.TotalReadDocuments.Add(float64(collection.RawCollection.Len()))
 	if !r.iterator.HasNext(ctx) {
-		r.logger.Info("read.service.has.next.no.batch.left")
+		r.logger.Info("read.service.has.next.no.collection.left")
 		return nil, nil
 	}
-	r.lastID = batch.LastItemID()
+	lastID := collection.RawCollection.LastItemID()
+	r.metaData = collection.MetaData
 	if atomic.LoadInt64(&r.readCounter)%10000 == 0 {
 
 		r.logger.Info("read.service.read.counter",
-			"lastID", r.lastID,
+			"lastID", lastID,
+			"meta_data", r.metaData,
 			"readCounter", atomic.LoadInt64(&r.readCounter),
 		)
 	}
-	return batch, nil
+	return collection, nil
 }

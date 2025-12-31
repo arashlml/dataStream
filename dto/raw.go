@@ -6,6 +6,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+type Collection struct {
+	RawCollection RawCollection `json:"raw_collection"`
+	MetaData      MetaData      `json:"meta_data"`
+}
+type MetaData map[string]interface{}
 type RawCollection []map[string]interface{}
 
 func (c RawCollection) LastItemID() string {

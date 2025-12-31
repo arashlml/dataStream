@@ -13,11 +13,11 @@ type Config struct {
 	BufferSize int `koanf:"bufferSize" validate:"gt=0"`
 }
 type Reader interface {
-	Read(ctx context.Context) (*dto.RawCollection, error)
+	Read(ctx context.Context) (*dto.Collection, error)
 }
 
 type Writer interface {
-	Write(ctx context.Context, batch *dto.RawCollection) error
+	Write(ctx context.Context, batch *dto.Collection) error
 }
 
 type SyncService struct {
@@ -27,7 +27,7 @@ type SyncService struct {
 	writeCtx            context.Context
 	wg                  *sync.WaitGroup
 	logger              *slog.Logger
-	backPressureChannel chan *dto.RawCollection
+	backPressureChannel chan *dto.Collection
 	metrics             *metrics.Metrics
 }
 
@@ -40,7 +40,7 @@ func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, metrics *
 		wg:                  &sync.WaitGroup{},
 		logger:              logger,
 		metrics:             metrics,
-		backPressureChannel: make(chan *dto.RawCollection, config.BufferSize),
+		backPressureChannel: make(chan *dto.Collection, config.BufferSize),
 	}
 	return s
 }
@@ -70,7 +70,7 @@ func (s *SyncService) readLoop(ctx context.Context) {
 func (s *SyncService) writeLoop(ctx context.Context) {
 	defer s.wg.Done()
 	for batch := range s.backPressureChannel {
-		lastID := batch.LastItemID()
+		lastID := batch.RawCollection.LastItemID()
 		err := s.writer.Write(ctx, batch)
 		if err != nil {
 			s.logger.Error(
