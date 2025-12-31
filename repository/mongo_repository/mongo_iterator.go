@@ -52,7 +52,7 @@ func (i *Iterator) ConvertID(lastID string) (interface{}, error) {
 
 func (i *Iterator) Next(ctx context.Context, metaData dto.MetaData) (*dto.Collection, error) {
 	filter := bson.M{}
-	if metaData["lastID"] != "" {
+	if metaData["lastID"] != nil {
 		lastID, ok := metaData["lastID"].(string)
 		if !ok {
 			i.logger.Warn("repository.mongo.iterator.next.metaData[\"lastID\"].type.assertion.failed")

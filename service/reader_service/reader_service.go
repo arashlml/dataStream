@@ -57,7 +57,7 @@ func (r *ReaderService) Read(ctx context.Context) (*dto.Collection, error) {
 	if err != nil {
 		r.logger.Error("read.service.next.error",
 			"error", err,
-			"meta_meta", r.metaData)
+			"meta_data", r.metaData)
 		r.metric.ErrorCounter.WithLabelValues("reader_service.read.iterator_next", err.Error()).Inc()
 		return nil, err
 	}
