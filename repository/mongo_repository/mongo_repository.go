@@ -2,105 +2,57 @@ package mongo_repository
 
 import (
 	"context"
-	"log"
-
+	"fmt"
 	"log/slog"
-	"time"
 
+	"github.com/arashlml/data-stream/dto"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type Config struct {
-	Uri                  string        `koanf:"uri" validate:"required,uri"`
-	Username             string        `koanf:"username"`
-	Password             string        `koanf:"password"`
-	Db                   string        `koanf:"db" validate:"required"`
-	Collection           string        `koanf:"collection" validate:"required"`
-	Attempts             int           `koanf:"attempts" validate:"gte=0"`
-	BatchSize            int64         `koanf:"batchSize" validate:"gt=0"`
-	PingTimeout          time.Duration `koanf:"pingTimeout" validate:"gte=0"`
-	CountDocQueryTimeout time.Duration `koanf:"countDocTimeout" validate:"gte=0"`
-	ConnectTimeout       time.Duration `koanf:"connectTimeout" validate:"gte=0"`
-	ReadTimeout          time.Duration `koanf:"readTimeout" validate:"gte=0"`
-	IDType               string        `koanf:"idType" validate:"required,oneof=ObjectID String"`
-}
-type Connector struct {
-	uri                  string
-	username             string
-	password             string
-	dbName               string
-	collectionName       string
-	attempts             int
-	logger               *slog.Logger
-	pingTimeout          time.Duration
-	countDocQueryTimeout time.Duration
-	connectTimeout       time.Duration
+type Upsertor struct {
+	col    *mongo.Collection
+	logger *slog.Logger
 }
 
-func NewConnector(logger *slog.Logger, config Config) *Connector {
-	return &Connector{
-		uri:                  config.Uri,
-		username:             config.Username,
-		password:             config.Password,
-		dbName:               config.Db,
-		collectionName:       config.Collection,
-		attempts:             config.Attempts,
-		logger:               logger,
-		pingTimeout:          config.PingTimeout,
-		countDocQueryTimeout: config.CountDocQueryTimeout,
-		connectTimeout:       config.ConnectTimeout,
-	}
+func NewUpsertor(logger *slog.Logger, collection *mongo.Collection) *Upsertor {
+	return &Upsertor{col: collection, logger: logger}
 }
 
-func (m *Connector) ConnectAndMakeCollection(ctx context.Context) (*mongo.Collection, error) {
-	connectCtx, _ := context.WithTimeout(ctx, m.connectTimeout*time.Second)
-	connOpts := options.Client().ApplyURI(m.uri)
-	if m.username != "" || m.password != "" {
-		connOpts = connOpts.SetAuth(options.Credential{Username: m.username, Password: m.password})
+func (u *Upsertor) BulkUpsert(ctx context.Context, batch *dto.RawCollection) error {
+	models := make([]mongo.WriteModel, 0, batch.Len())
+
+	for _, doc := range batch.Raw() {
+		id, ok := doc["_id"]
+		if !ok {
+			u.logger.Error("repository.mongo.bulk.upsert.no.id.found.in.document")
+			return fmt.Errorf("document missing 'id' field: %v", doc)
+		}
+
+		filter := bson.M{"_id": id}
+		update := bson.M{"$set": doc}
+
+		model := mongo.NewUpdateOneModel().
+			SetFilter(filter).
+			SetUpdate(update).
+			SetUpsert(true)
+
+		models = append(models, model)
 	}
-	client, err := mongo.Connect(connectCtx, connOpts)
+
+	if len(models) == 0 {
+		u.logger.Error("repository.mongo.bulk.upsert.no.write.models")
+		return nil
+	}
+
+	opts := options.BulkWrite().SetOrdered(false)
+	_, err := u.col.BulkWrite(ctx, models, opts)
+
 	if err != nil {
-		m.logger.Error("mongo.connect.connecting.to.server.error",
-			"error", err)
-		client, err = m.retry(ctx)
-		if err != nil {
-			m.logger.Error("mongo.connect.connecting.to.server.error",
-				"error", err,
-			)
-			return nil, err
-		}
-		return nil, err
+		u.logger.Error("repository.mongo.upsert.bulk.write.error", "error", err)
+		return fmt.Errorf("bulk upsert failed: %w", err)
 	}
-	PingCtx, _ := context.WithTimeout(ctx, m.pingTimeout*time.Second)
-	if err := client.Ping(PingCtx, nil); err != nil {
-		m.logger.Error("mongo.connect.pinging.server.error",
-			"error", err)
-		return nil, err
-	}
-	m.logger.Info("mongo.connect.connecting.server.success")
-	col := m.MakeCollection(ctx, client)
 
-	return col, nil
-}
-
-func (m *Connector) MakeCollection(ctx context.Context, client *mongo.Client) *mongo.Collection {
-	col := client.Database(m.dbName).Collection(m.collectionName)
-	return col
-}
-
-func (m *Connector) retry(ctx context.Context) (*mongo.Client, error) {
-	for i := 0; i < m.attempts; i++ {
-		connectCtx, _ := context.WithTimeout(ctx, m.connectTimeout*time.Second)
-		client, err := mongo.Connect(connectCtx, options.Client().ApplyURI(m.uri).SetAuth(options.Credential{Username: m.username, Password: m.password}))
-		if err == nil {
-			log.Println("mongo.connect.connecting.success")
-			return client, nil
-		}
-		<-time.After(time.Duration(i*5) * time.Second)
-		m.logger.Error("mongo.connect.error",
-			"attempt", i,
-			"error", err)
-	}
-	return nil, nil
+	return nil
 }

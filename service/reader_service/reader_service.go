@@ -49,6 +49,7 @@ func New(store Storage, iterator Iterator, metrics *metrics.Metrics, logger *slo
 		r.logger.Info("service.reader.service.new.meta.data.success", "metadata", metaData)
 		r.metaData = metaData
 	}
+
 	return r
 }
 
@@ -64,12 +65,12 @@ func (r *ReaderService) Read(ctx context.Context) (*dto.Collection, error) {
 	atomic.AddInt64(&r.readCounter, int64(collection.RawCollection.Len()))
 	r.metric.TotalReadDocuments.Add(float64(collection.RawCollection.Len()))
 	if !r.iterator.HasNext(ctx) {
-		r.logger.Info("read.service.has.next.no.collection.left")
+		r.logger.Info("read.service.has.next.no.documents.left")
 		return nil, nil
 	}
 	lastID := collection.RawCollection.LastItemID()
 	r.metaData = collection.MetaData
-	if atomic.LoadInt64(&r.readCounter)%10000 == 0 {
+	if atomic.LoadInt64(&r.readCounter)%1 == 0 {
 
 		r.logger.Info("read.service.read.counter",
 			"lastID", lastID,

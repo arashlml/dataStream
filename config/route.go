@@ -5,6 +5,7 @@ import (
 
 	"github.com/arashlml/data-stream/repository/elastic_repository"
 	"github.com/arashlml/data-stream/repository/mongo_repository"
+	"github.com/arashlml/data-stream/repository/typesense_file_repository"
 	"github.com/arashlml/data-stream/service/reader_service"
 	syncservice "github.com/arashlml/data-stream/service/sync_service"
 	"github.com/arashlml/data-stream/storage"
@@ -12,11 +13,12 @@ import (
 )
 
 type Config struct {
-	Storage     storage.Config            `koanf:"storage"`
-	SyncService syncservice.Config        `koanf:"sync-service"`
-	ReadService reader_service.Config     `koanf:"read-service"`
-	Mongo       mongo_repository.Config   `koanf:"mongo"`
-	Elastic     elastic_repository.Config `koanf:"elastic"`
+	Storage     storage.Config                   `koanf:"storage"`
+	SyncService syncservice.Config               `koanf:"sync-service"`
+	ReadService reader_service.Config            `koanf:"read-service"`
+	Mongo       mongo_repository.Config          `koanf:"mongo"`
+	Elastic     elastic_repository.Config        `koanf:"elastic"`
+	Typesense   typesense_file_repository.Config `koanf:"typesense-file"`
 }
 
 func (c *Config) ValidateConfig() error {

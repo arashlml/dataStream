@@ -10,7 +10,7 @@ import (
 )
 
 type Repository interface {
-	BulkInsert(ctx context.Context, batch *dto.RawCollection) error
+	BulkUpsert(ctx context.Context, batch *dto.RawCollection) error
 }
 
 type Storage interface {
@@ -30,7 +30,7 @@ func New(store Storage, repo Repository, metric *metrics.Metrics, logger *slog.L
 }
 
 func (s *WriterService) Write(ctx context.Context, batch *dto.Collection) error {
-	err := s.repo.BulkInsert(ctx, &batch.RawCollection)
+	err := s.repo.BulkUpsert(ctx, &batch.RawCollection)
 	if err != nil {
 		s.logger.Error("writer.service.bulk.insert.error",
 			"error", err,
@@ -48,8 +48,8 @@ func (s *WriterService) Write(ctx context.Context, batch *dto.Collection) error 
 	}
 	atomic.AddInt64(&s.writeCounter, int64(batch.RawCollection.Len()))
 	s.metric.TotalWrittenDocuments.Add(float64(batch.RawCollection.Len()))
-	if atomic.LoadInt64(&s.writeCounter)%10000 == 0 {
-		s.logger.Info("writer.service.store.write.success",
+	if atomic.LoadInt64(&s.writeCounter)%1 == 0 {
+		s.logger.Info("writer.service.write.success",
 			"last.ID", batch.RawCollection.LastItemID(),
 			"witer.Counter", atomic.LoadInt64(&s.writeCounter))
 	}
