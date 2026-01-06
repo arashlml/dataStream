@@ -28,10 +28,9 @@ type SyncService struct {
 	wg                  *sync.WaitGroup
 	logger              *slog.Logger
 	backPressureChannel chan *dto.Collection
-	metrics             *metrics.Metrics
 }
 
-func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, metrics *metrics.Metrics, config Config) *SyncService {
+func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, config Config) *SyncService {
 	s := &SyncService{
 		reader:              reader,
 		writer:              writer,
@@ -39,7 +38,6 @@ func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, metrics *
 		writeCtx:            context.Background(),
 		wg:                  &sync.WaitGroup{},
 		logger:              logger,
-		metrics:             metrics,
 		backPressureChannel: make(chan *dto.Collection, config.BufferSize),
 	}
 	return s
@@ -61,7 +59,7 @@ func (s *SyncService) readLoop(ctx context.Context) {
 		}
 		if err != nil {
 			s.logger.Error("sync.service.readLoops.error", "error", err)
-			s.metrics.ErrorCounter.WithLabelValues("sync_service.read_loop.read_failed", err.Error()).Inc()
+			metrics.ErrorCounter.WithLabelValues("sync_service.read_loop.read_failed", err.Error()).Inc()
 		}
 		s.backPressureChannel <- batch
 	}
@@ -78,7 +76,7 @@ func (s *SyncService) writeLoop(ctx context.Context) {
 				"error", err,
 				"_id", lastID,
 			)
-			s.metrics.ErrorCounter.WithLabelValues("sync_service.write_loop.write_failed", err.Error()).Inc()
+			metrics.ErrorCounter.WithLabelValues("sync_service.write_loop.write_failed", err.Error()).Inc()
 		}
 	}
 }

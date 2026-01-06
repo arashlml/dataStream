@@ -8,6 +8,7 @@ import (
 
 	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
+	"github.com/arashlml/data-stream/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -23,10 +24,9 @@ type Iterator struct {
 	logger      *slog.Logger
 	idType      string
 	readTimeout time.Duration
-	metrics     *metrics.Metrics
 }
 
-func NewIterator(col *mongo.Collection, logger *slog.Logger, metrics *metrics.Metrics, config Config) *Iterator {
+func NewIterator(col *mongo.Collection, logger *slog.Logger, config model.Config) *Iterator {
 	i := &Iterator{
 		col:         col,
 		batchSize:   config.BatchSize,
@@ -34,7 +34,6 @@ func NewIterator(col *mongo.Collection, logger *slog.Logger, metrics *metrics.Me
 		logger:      logger,
 		idType:      config.IDType,
 		readTimeout: config.ReadTimeout,
-		metrics:     metrics,
 	}
 	return i
 }
@@ -45,25 +44,25 @@ func (i *Iterator) ConvertID(lastID string) (interface{}, error) {
 	case "String":
 		return lastID, nil
 	default:
-		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.convert_id.unsupported_type", "unsupported ID type").Inc()
+		metrics.ErrorCounter.WithLabelValues("mongo_iterator.convert_id.unsupported_type", "unsupported ID type").Inc()
 		return nil, fmt.Errorf("unsupported ID type")
 	}
 }
 
-func (i *Iterator) Next(ctx context.Context, metaData dto.MetaData) (*dto.Collection, error) {
+func (i *Iterator) Next(ctx context.Context, cursor dto.Cursor) (*dto.Collection, error) {
 	filter := bson.M{}
-	if metaData["lastID"] != nil {
-		lastID, ok := metaData["lastID"].(string)
+	if cursor["lastID"] != nil {
+		lastID, ok := cursor["lastID"].(string)
 		if !ok {
-			i.logger.Warn("repository.mongo.iterator.next.metaData[\"lastID\"].type.assertion.failed")
+			i.logger.Warn("repository.mongo.iterator.next.cursor[\"lastID\"].type.assertion.failed")
 			return nil, fmt.Errorf(`"lastID" must be a string`)
 		}
 		id, err := i.ConvertID(lastID)
 		if err != nil {
 			i.logger.Error("repository.mongo.iterator.convert.id.error",
 				"error", err,
-				"lastID", metaData["lastID"])
-			i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.convert_id", err.Error()).Inc()
+				"lastID", cursor["lastID"])
+			metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.convert_id", err.Error()).Inc()
 			return nil, err
 		}
 
@@ -79,9 +78,9 @@ func (i *Iterator) Next(ctx context.Context, metaData dto.MetaData) (*dto.Collec
 	if err != nil {
 		i.logger.Error("mongo.col.Find().error",
 			"error", err,
-			"_id", metaData["lastID"],
+			"_id", cursor["lastID"],
 		)
-		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.find", err.Error()).Inc()
+		metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.find", err.Error()).Inc()
 		return nil, err
 	}
 	defer i.cursor.Close(readCtx)
@@ -90,14 +89,14 @@ func (i *Iterator) Next(ctx context.Context, metaData dto.MetaData) (*dto.Collec
 	if err := i.cursor.All(readCtx, &i.batch); err != nil {
 		i.logger.Error("mongo.cursor.all.error",
 			"error", err,
-			"_id", metaData["lastID"],
+			"_id", cursor["lastID"],
 		)
-		i.metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.cursor_all", err.Error()).Inc()
+		metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.cursor_all", err.Error()).Inc()
 		return nil, err
 	}
 	elapsed := time.Since(start)
-	i.metrics.ReadDuration.Observe(elapsed.Seconds())
-	i.metrics.TotalReadOperations.Add(1)
+	metrics.ReadDuration.Observe(elapsed.Seconds())
+	metrics.TotalReadOperations.Add(1)
 	i.hasNext = i.batchSize == int64(len(i.batch))
 	convertedBatch := i.ConvertedBatch()
 	return &convertedBatch, nil
@@ -108,7 +107,7 @@ func (i *Iterator) ConvertedBatch() dto.Collection {
 	for _, doc := range i.batch {
 		convertedBatch = append(convertedBatch, doc)
 	}
-	collection := dto.Collection{RawCollection: convertedBatch.Raw(), MetaData: map[string]interface{}{"lastID": convertedBatch.LastItemID()}}
+	collection := dto.Collection{RawCollection: convertedBatch.Raw(), Cursor: map[string]interface{}{"lastID": convertedBatch.LastItemID()}}
 	return collection
 }
 

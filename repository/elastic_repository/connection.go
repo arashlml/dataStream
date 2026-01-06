@@ -31,11 +31,10 @@ type Connector struct {
 	index       string
 	logger      *slog.Logger
 	pingTimeout time.Duration
-	metrics     *metrics.Metrics
 }
 
-func NewConnector(logger *slog.Logger, metrics *metrics.Metrics, config Config) *Connector {
-	return &Connector{uri: config.Uri, username: config.Username, password: config.Password, index: config.Index, logger: logger, pingTimeout: config.PingTimeout, metrics: metrics}
+func NewConnector(logger *slog.Logger, config Config) *Connector {
+	return &Connector{uri: config.Uri, username: config.Username, password: config.Password, index: config.Index, logger: logger, pingTimeout: config.PingTimeout}
 }
 
 func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) {
@@ -55,7 +54,7 @@ func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) 
 		e.logger.Error("Elastic.connector.new.Client.error",
 			"error", err,
 		)
-		e.metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.new_client", "", err.Error()).Inc()
+		metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.new_client", "", err.Error()).Inc()
 		return nil, err
 	}
 
@@ -67,7 +66,7 @@ func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) 
 		e.logger.Error("Elastic.connector.pinging.server.error",
 			"error", err,
 		)
-		e.metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.ping_failed", "", err.Error()).Inc()
+		metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.ping_failed", "", err.Error()).Inc()
 		return nil, err
 	}
 
@@ -77,7 +76,7 @@ func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) 
 		e.logger.Error("Elastic.connector.pinging.server.error",
 			"error", res.String(),
 		)
-		e.metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.ping_response_error", "", res.String()).Inc()
+		metrics.ErrorCounter.WithLabelValues("elastic_connector.connect.ping_response_error", "", res.String()).Inc()
 		return nil, fmt.Errorf("ping error: %s", res.Status())
 	}
 

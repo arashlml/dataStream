@@ -7,47 +7,47 @@ import (
 
 	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
+	"github.com/arashlml/data-stream/model"
 )
 
-type Repository interface {
-	BulkUpsert(ctx context.Context, batch *dto.RawCollection) error
-}
-
-type Storage interface {
-	Save(metaData dto.MetaData) error
-}
-
-type WriterService struct {
+type Service struct {
 	writeCounter int64
 	store        Storage
-	repo         Repository
-	metric       *metrics.Metrics
+	repo         model.WriteRepository
 	logger       *slog.Logger
 }
 
-func New(store Storage, repo Repository, metric *metrics.Metrics, logger *slog.Logger) *WriterService {
-	return &WriterService{store: store, repo: repo, metric: metric, logger: logger}
+func New(store Storage, logger *slog.Logger, repo model.WriteRepository) *Service {
+	return &Service{
+		store:  store,
+		logger: logger,
+		repo:   repo,
+	}
 }
 
-func (s *WriterService) Write(ctx context.Context, batch *dto.Collection) error {
+type Storage interface {
+	Save(cursor dto.Cursor) error
+}
+
+func (s *Service) Write(ctx context.Context, batch *dto.Collection) error {
 	err := s.repo.BulkUpsert(ctx, &batch.RawCollection)
 	if err != nil {
 		s.logger.Error("writer.service.bulk.insert.error",
 			"error", err,
 			"last.ID", batch.RawCollection.LastItemID())
-		s.metric.ErrorCounter.WithLabelValues("writer_service.write.bulk_insert", err.Error()).Inc()
+		metrics.ErrorCounter.WithLabelValues("writer_service.write.bulk_insert", err.Error()).Inc()
 		return err
 	}
-	err = s.store.Save(batch.MetaData)
+	err = s.store.Save(batch.Cursor)
 	if err != nil {
 		s.logger.Error("writer.service.store.write.error",
 			"error", err,
 			"last.ID", batch.RawCollection.LastItemID())
-		s.metric.ErrorCounter.WithLabelValues("writer_service.write.store_save", err.Error()).Inc()
+		metrics.ErrorCounter.WithLabelValues("writer_service.write.store_save", err.Error()).Inc()
 		return err
 	}
 	atomic.AddInt64(&s.writeCounter, int64(batch.RawCollection.Len()))
-	s.metric.TotalWrittenDocuments.Add(float64(batch.RawCollection.Len()))
+	metrics.TotalWrittenDocuments.Add(float64(batch.RawCollection.Len()))
 	if atomic.LoadInt64(&s.writeCounter)%1 == 0 {
 		s.logger.Info("writer.service.write.success",
 			"last.ID", batch.RawCollection.LastItemID(),

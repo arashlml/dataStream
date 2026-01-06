@@ -25,6 +25,7 @@ type Config struct {
 	ReadTimeout          time.Duration `koanf:"readTimeout" validate:"gte=0"`
 	IDType               string        `koanf:"idType" validate:"required,oneof=ObjectID String"`
 }
+
 type Connector struct {
 	uri                  string
 	username             string

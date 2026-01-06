@@ -7,74 +7,67 @@ import (
 
 	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
+	"github.com/arashlml/data-stream/model"
 )
 
 type Config struct {
 	ResumeCapability bool `koanf:"resume_capability"`
 }
 type Storage interface {
-	LoadMetaData() (dto.MetaData, error)
-}
-
-type Iterator interface {
-	Next(ctx context.Context, metaData dto.MetaData) (*dto.Collection, error)
-	HasNext(ctx context.Context) bool
+	LoadCursor() (dto.Cursor, error)
 }
 
 type ReaderService struct {
-	metaData    dto.MetaData
+	cursor      dto.Cursor
 	readCounter int64
 	store       Storage
-	iterator    Iterator
-	metric      *metrics.Metrics
+	iterator    model.Iterator
 	logger      *slog.Logger
 	resumeCap   bool
 }
 
-func New(store Storage, iterator Iterator, metrics *metrics.Metrics, logger *slog.Logger, config Config) *ReaderService {
+func New(store Storage, iterator model.Iterator, logger *slog.Logger, config Config) *ReaderService {
 	r := &ReaderService{
 		store:     store,
 		iterator:  iterator,
-		metric:    metrics,
 		logger:    logger,
 		resumeCap: config.ResumeCapability,
 	}
 	if r.resumeCap {
-		metaData, err := r.store.LoadMetaData()
+		cursor, err := r.store.LoadCursor()
 		if err != nil {
 			r.logger.Error("service.reader.service.new.loadLastID.error",
 				"error", err.Error())
-			r.metric.ErrorCounter.WithLabelValues("reader_service.new.LoadMetaData", err.Error()).Inc()
+			metrics.ErrorCounter.WithLabelValues("reader_service.new.LoadCursor", err.Error()).Inc()
 		}
-		r.logger.Info("service.reader.service.new.meta.data.success", "metadata", metaData)
-		r.metaData = metaData
+		r.logger.Info("service.reader.service.new.meta.data.success", "metadata", cursor)
+		r.cursor = cursor
 	}
 
 	return r
 }
-
 func (r *ReaderService) Read(ctx context.Context) (*dto.Collection, error) {
-	collection, err := r.iterator.Next(ctx, r.metaData)
+	collection, err := r.iterator.Next(ctx, r.cursor)
 	if err != nil {
 		r.logger.Error("read.service.next.error",
 			"error", err,
-			"meta_data", r.metaData)
-		r.metric.ErrorCounter.WithLabelValues("reader_service.read.iterator_next", err.Error()).Inc()
+			"meta_data", r.cursor)
+		metrics.ErrorCounter.WithLabelValues("reader_service.read.iterator_next", err.Error()).Inc()
 		return nil, err
 	}
 	atomic.AddInt64(&r.readCounter, int64(collection.RawCollection.Len()))
-	r.metric.TotalReadDocuments.Add(float64(collection.RawCollection.Len()))
+	metrics.TotalReadDocuments.Add(float64(collection.RawCollection.Len()))
 	if !r.iterator.HasNext(ctx) {
 		r.logger.Info("read.service.has.next.no.documents.left")
 		return nil, nil
 	}
 	lastID := collection.RawCollection.LastItemID()
-	r.metaData = collection.MetaData
+	r.cursor = collection.Cursor
 	if atomic.LoadInt64(&r.readCounter)%1 == 0 {
 
 		r.logger.Info("read.service.read.counter",
 			"lastID", lastID,
-			"meta_data", r.metaData,
+			"cursor", r.cursor,
 			"readCounter", atomic.LoadInt64(&r.readCounter),
 		)
 	}

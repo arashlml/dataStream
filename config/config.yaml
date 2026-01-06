@@ -1,35 +1,57 @@
 storage:
-  filePath: "last_inserted_id.csv"
+  filePath: "last_cursor.csv"
 sync-service:
   bufferSize : 10 # channel size
 read-service:
   resume_capability: true
-mongo :
-  # "mongodb://host.docker.internal:27018"
-  uri: "mongodb://localhost:27017"
-  #username: "root"
-  username: ""
-  #password: "39325b03649f3c34013338cb"
-  password: ""
-  #db: "szto-sdp-stg"
-  db: "mydb"
-  collection: "mainProducts"
-  attempts : 5
-  batchSize : 1000
-  pingTimeout : 2
-  connectTimeout : 2
-  readTimeout: 2
-  idType: "ObjectID"
-elastic:
-  uri: "http://elastic:9200"
-  username: "elastic"
-  #password: "mJquAU0Sa2cgYSyz2bnf"
-  password: ""
-  index: "users"
-  retryAttempts : 1
-  pingTimeout : 5
-  insertTimeout: 1
-  retryInterval: 5
-typesense-file:
-  file_path: "C:\\Users\\Arash\\Desktop\\mongo\\embedding"
-  batch_size: 500
+factory-iterator:
+  driver:
+  mongo:
+    # "mongodb://host.docker.internal:27018"
+    uri: "mongodb://localhost:27017"
+    #username: "root"
+    username: ""
+    #password: "39325b03649f3c34013338cb"
+    password: ""
+    #db: "szto-sdp-stg"
+    db: "mydb"
+    collection: "mainProducts"
+    attempts: 5
+    batchSize: 1000
+    pingTimeout: 2
+    connectTimeout: 2
+    readTimeout: 2
+    idType: "ObjectID"
+  typesense-file:
+    file_path: "C:\\Users\\Arash\\Desktop\\mongo\\embedding"
+    batch_size: 500
+factory-repository:
+  driver:
+  mongo :
+    # "mongodb://host.docker.internal:27018"
+    uri: "mongodb://localhost:27017"
+    #username: "root"
+    username: ""
+    #password: "39325b03649f3c34013338cb"
+    password: ""
+    #db: "szto-sdp-stg"
+    db: "mydb"
+    collection: "mainProducts"
+    attempts : 5
+    batchSize : 1000
+    pingTimeout : 2
+    connectTimeout : 2
+    readTimeout: 2
+    idType: "ObjectID"
+
+  elastic:
+    uri: "http://elastic:9200"
+    username: "elastic"
+    #password: "mJquAU0Sa2cgYSyz2bnf"
+    password: ""
+    index: "users"
+    retryAttempts : 1
+    pingTimeout : 5
+    insertTimeout: 1
+    retryInterval: 5
+

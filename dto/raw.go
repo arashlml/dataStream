@@ -8,9 +8,9 @@ import (
 
 type Collection struct {
 	RawCollection RawCollection `json:"raw_collection"`
-	MetaData      MetaData      `json:"meta_data"`
+	Cursor        Cursor        `json:"Cursor"`
 }
-type MetaData map[string]interface{}
+type Cursor map[string]interface{}
 type RawCollection []map[string]interface{}
 
 func (c RawCollection) LastItemID() string {
