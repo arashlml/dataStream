@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
+	"github.com/arashlml/data-stream/model"
 )
 
 type Config struct {
@@ -23,7 +23,7 @@ func NewStorage(logger *slog.Logger, config Config) *FileStorage {
 	return &FileStorage{logger: logger, path: config.FilePath}
 }
 
-func (s *FileStorage) Save(cursor dto.Cursor) error {
+func (s *FileStorage) Save(cursor model.Cursor) error {
 	f, err := os.OpenFile(s.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		s.logger.Error(
@@ -52,7 +52,7 @@ func (s *FileStorage) Save(cursor dto.Cursor) error {
 	return nil
 }
 
-func (s *FileStorage) LoadCursor() (dto.Cursor, error) {
+func (s *FileStorage) LoadCursor() (model.Cursor, error) {
 	f, err := os.Open(s.path)
 	if err != nil {
 		s.logger.Error("state.readFromFile.open.failed", "error", err)
@@ -79,7 +79,7 @@ func (s *FileStorage) LoadCursor() (dto.Cursor, error) {
 		metrics.ErrorCounter.WithLabelValues("storage.loadMetaData.invalid_row", "invalid row in last_inserted_id.csv").Inc()
 		return nil, nil
 	}
-	var cursor dto.Cursor
+	var cursor model.Cursor
 	err = json.Unmarshal([]byte(last[0]), &cursor)
 	if err != nil {
 		s.logger.Error("storage.file.LoadCursor.unmarshal.failed", "error", err)

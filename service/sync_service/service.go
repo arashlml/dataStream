@@ -5,19 +5,19 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
+	"github.com/arashlml/data-stream/model"
 )
 
 type Config struct {
 	BufferSize int `koanf:"bufferSize" validate:"gt=0"`
 }
 type Reader interface {
-	Read(ctx context.Context) (*dto.Collection, error)
+	Read(ctx context.Context) (*model.Collection, error)
 }
 
 type Writer interface {
-	Write(ctx context.Context, batch *dto.Collection) error
+	Write(ctx context.Context, batch *model.Collection) error
 }
 
 type SyncService struct {
@@ -27,7 +27,7 @@ type SyncService struct {
 	writeCtx            context.Context
 	wg                  *sync.WaitGroup
 	logger              *slog.Logger
-	backPressureChannel chan *dto.Collection
+	backPressureChannel chan *model.Collection
 }
 
 func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, config Config) *SyncService {
@@ -38,7 +38,7 @@ func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, config Co
 		writeCtx:            context.Background(),
 		wg:                  &sync.WaitGroup{},
 		logger:              logger,
-		backPressureChannel: make(chan *dto.Collection, config.BufferSize),
+		backPressureChannel: make(chan *model.Collection, config.BufferSize),
 	}
 	return s
 }
@@ -53,7 +53,7 @@ func (s *SyncService) readLoop(ctx context.Context) {
 	defer close(s.backPressureChannel)
 	for {
 		batch, err := s.reader.Read(ctx)
-		if batch == nil {
+		if batch == nil && err == nil {
 			s.logger.Info("sync.service.empty.batch")
 			return
 		}

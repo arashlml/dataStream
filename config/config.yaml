@@ -5,7 +5,7 @@ sync-service:
 read-service:
   resume_capability: true
 iterator_factory:
-  driver: "typesense_file"
+  driver: "mongo"
   mongo:
     # "mongodb://host.docker.internal:27018"
     uri: "mongodb://localhost:27017"
@@ -17,16 +17,16 @@ iterator_factory:
     db: "mydb"
     collection: "mainProducts"
     attempts: 5
-    batchSize: 1000
+    batchSize: 20000
     pingTimeout: 2
     connectTimeout: 2
-    readTimeout: 2
-    idType: "ObjectID"
+    readTimeout: 60
+    idType: "String"
   typesense_file:
     file_path: "C:\\Users\\Arash\\Desktop\\mongo\\embedding"
     batch_size: 500
 repository_factory:
-  driver: "mongo"
+  driver: "elastic"
   mongo :
     # "mongodb://host.docker.internal:27018"
     uri: "mongodb://localhost:27017"
@@ -38,20 +38,20 @@ repository_factory:
     db: "mydb"
     collection: "mainProducts"
     attempts : 5
-    batchSize : 1000
+    batchSize : 100000
     pingTimeout : 2
     connectTimeout : 2
     readTimeout: 2
     idType: "ObjectID"
 
   elastic:
-    uri: "http://elastic:9200"
+    uri: "http://localhost:9200"
     username: "elastic"
     #password: "mJquAU0Sa2cgYSyz2bnf"
     password: ""
-    index: "users"
+    index: "products"
     retryAttempts : 1
     pingTimeout : 5
-    insertTimeout: 1
+    insertTimeout: 60
     retryInterval: 5
 

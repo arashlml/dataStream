@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
+	"github.com/arashlml/data-stream/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -48,7 +48,7 @@ func (i *Iterator) ConvertID(lastID string) (interface{}, error) {
 	}
 }
 
-func (i *Iterator) Next(ctx context.Context, cursor dto.Cursor) (*dto.Collection, error) {
+func (i *Iterator) Next(ctx context.Context, cursor model.Cursor) (*model.Collection, error) {
 	filter := bson.M{}
 	if cursor["lastID"] != nil {
 		lastID, ok := cursor["lastID"].(string)
@@ -80,6 +80,7 @@ func (i *Iterator) Next(ctx context.Context, cursor dto.Cursor) (*dto.Collection
 			"_id", cursor["lastID"],
 		)
 		metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.find", err.Error()).Inc()
+		// TODO :retry
 		return nil, err
 	}
 	defer i.cursor.Close(readCtx)
@@ -91,6 +92,7 @@ func (i *Iterator) Next(ctx context.Context, cursor dto.Cursor) (*dto.Collection
 			"_id", cursor["lastID"],
 		)
 		metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.cursor_all", err.Error()).Inc()
+		// TODO :retry
 		return nil, err
 	}
 	elapsed := time.Since(start)
@@ -101,12 +103,12 @@ func (i *Iterator) Next(ctx context.Context, cursor dto.Cursor) (*dto.Collection
 	return &convertedBatch, nil
 }
 
-func (i *Iterator) ConvertedBatch() dto.Collection {
-	var convertedBatch dto.RawCollection
+func (i *Iterator) ConvertedBatch() model.Collection {
+	var convertedBatch model.RawCollection
 	for _, doc := range i.batch {
 		convertedBatch = append(convertedBatch, doc)
 	}
-	collection := dto.Collection{RawCollection: convertedBatch.Raw(), Cursor: map[string]interface{}{"lastID": convertedBatch.LastItemID()}}
+	collection := model.Collection{RawCollection: convertedBatch.Raw(), Cursor: map[string]interface{}{"lastID": convertedBatch.LastItemID()}}
 	return collection
 }
 

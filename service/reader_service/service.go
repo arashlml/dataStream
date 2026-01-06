@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
 	"github.com/arashlml/data-stream/model"
 )
@@ -14,11 +13,11 @@ type Config struct {
 	ResumeCapability bool `koanf:"resume_capability"`
 }
 type Storage interface {
-	LoadCursor() (dto.Cursor, error)
+	LoadCursor() (model.Cursor, error)
 }
 
 type ReaderService struct {
-	cursor      dto.Cursor
+	cursor      model.Cursor
 	readCounter int64
 	store       Storage
 	iterator    model.Iterator
@@ -46,12 +45,14 @@ func New(store Storage, iterator model.Iterator, logger *slog.Logger, config Con
 
 	return r
 }
-func (r *ReaderService) Read(ctx context.Context) (*dto.Collection, error) {
+func (r *ReaderService) Read(ctx context.Context) (*model.Collection, error) {
 	collection, err := r.iterator.Next(ctx, r.cursor)
 	if err != nil {
-		r.logger.Error("read.service.next.error",
+		r.logger.Error(
+			"read.service.next.error",
 			"error", err,
-			"meta_data", r.cursor)
+			"meta_data", r.cursor,
+		)
 		metrics.ErrorCounter.WithLabelValues("reader_service.read.iterator_next", err.Error()).Inc()
 		return nil, err
 	}

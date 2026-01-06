@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/arashlml/data-stream/dto"
+	"github.com/arashlml/data-stream/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -20,7 +20,7 @@ func NewUpsertor(logger *slog.Logger, collection *mongo.Collection) *Upsertor {
 	return &Upsertor{col: collection, logger: logger}
 }
 
-func (u *Upsertor) BulkUpsert(ctx context.Context, batch *dto.RawCollection) error {
+func (u *Upsertor) BulkUpsert(ctx context.Context, batch *model.RawCollection) error {
 	models := make([]mongo.WriteModel, 0, batch.Len())
 
 	for _, doc := range batch.Raw() {

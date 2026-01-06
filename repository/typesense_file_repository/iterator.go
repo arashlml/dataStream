@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/arashlml/data-stream/dto"
+	"github.com/arashlml/data-stream/model"
 )
 
 type Config struct {
@@ -87,12 +87,12 @@ func (t *Typesense) CloseFile() {
 	}
 }
 
-func (t *Typesense) Next(ctx context.Context, cursor dto.Cursor) (*dto.Collection, error) {
+func (t *Typesense) Next(ctx context.Context, cursor model.Cursor) (*model.Collection, error) {
 	t.cursor = cursor
 	if cursor != nil {
 		t.ConvertType()
 	} else {
-		cursor = dto.Cursor{"fileIndex": 0, "start": 0}
+		cursor = model.Cursor{"fileIndex": 0, "start": 0}
 	}
 
 	fileIndex := cursor["fileIndex"].(int)
@@ -115,7 +115,7 @@ func (t *Typesense) Next(ctx context.Context, cursor dto.Cursor) (*dto.Collectio
 				cursor["fileIndex"] = fileIndex + 1
 				cursor["start"] = 0
 
-				return &dto.Collection{RawCollection: documents, Cursor: cursor}, nil
+				return &model.Collection{RawCollection: documents, Cursor: cursor}, nil
 			}
 			return nil, err
 		}
@@ -156,7 +156,7 @@ func (t *Typesense) Next(ctx context.Context, cursor dto.Cursor) (*dto.Collectio
 	cursor["fileIndex"] = fileIndex
 	cursor["start"] = lineStart
 	t.cursor = cursor
-	return &dto.Collection{
+	return &model.Collection{
 		RawCollection: documents,
 		Cursor:        cursor,
 	}, nil

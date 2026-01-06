@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
 	"github.com/arashlml/data-stream/model"
 )
@@ -26,10 +25,10 @@ func New(store Storage, logger *slog.Logger, repo model.WriteRepository) *Servic
 }
 
 type Storage interface {
-	Save(cursor dto.Cursor) error
+	Save(cursor model.Cursor) error
 }
 
-func (s *Service) Write(ctx context.Context, batch *dto.Collection) error {
+func (s *Service) Write(ctx context.Context, batch *model.Collection) error {
 	err := s.repo.BulkUpsert(ctx, &batch.RawCollection)
 	if err != nil {
 		s.logger.Error("writer.service.bulk.insert.error",

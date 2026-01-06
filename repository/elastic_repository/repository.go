@@ -9,8 +9,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
+	"github.com/arashlml/data-stream/model"
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
@@ -41,7 +41,7 @@ func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, con
 	return r
 }
 
-func (e *ElasticRepository) Convertor(ctx context.Context, batch *dto.RawCollection) (bytes.Buffer, string, error) {
+func (e *ElasticRepository) Convertor(ctx context.Context, batch *model.RawCollection) (bytes.Buffer, string, error) {
 	var buf bytes.Buffer
 	newDoc := map[string]interface{}{}
 	lastID := batch.LastItemID()
@@ -106,7 +106,7 @@ func (e *ElasticRepository) Convertor(ctx context.Context, batch *dto.RawCollect
 	return buf, lastID, nil
 }
 
-func (e *ElasticRepository) BulkUpsert(ctx context.Context, batch *dto.RawCollection) error {
+func (e *ElasticRepository) BulkUpsert(ctx context.Context, batch *model.RawCollection) error {
 	if len(batch.Raw()) == 0 {
 		return errors.New("empty batch")
 	}
@@ -134,6 +134,7 @@ func (e *ElasticRepository) BulkUpsert(ctx context.Context, batch *dto.RawCollec
 		e.retry(ctx, buf, lastID)
 		return insertCtx.Err()
 	}
+
 	if err != nil {
 		e.logger.Error(
 			"elastic.repository.bulk.request.failed",
@@ -141,9 +142,9 @@ func (e *ElasticRepository) BulkUpsert(ctx context.Context, batch *dto.RawCollec
 			"_id", lastID,
 		)
 		metrics.ErrorCounter.WithLabelValues("elastic_repository.bulk_insert.bulk_failed", err.Error()).Inc()
-		e.retry(ctx, buf, lastID)
 		return err
 	}
+
 	defer res.Body.Close()
 
 	if res.IsError() {
@@ -166,6 +167,7 @@ func (e *ElasticRepository) BulkUpsert(ctx context.Context, batch *dto.RawCollec
 		metrics.ErrorCounter.WithLabelValues("elastic_repository.bulk_insert.decode_failed", err.Error()).Inc()
 		return err
 	}
+
 	if success, ok := result["errors"].(bool); !ok {
 		e.logger.Error("elastic.repository.bulk.result['errors'].type.assertion.failed",
 			"_id", lastID,
@@ -181,6 +183,7 @@ func (e *ElasticRepository) BulkUpsert(ctx context.Context, batch *dto.RawCollec
 		}
 
 	}
+	e.logger.Info("error", err)
 	elapsed := time.Since(start)
 	metrics.WriteDuration.Observe(elapsed.Seconds())
 	metrics.TotalWrittenOperations.Add(1)
