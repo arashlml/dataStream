@@ -12,8 +12,8 @@ import (
 
 type Config struct {
 	Driver  string                    `koanf:"driver" validate:"oneof=elastic mongo"`
-	Mongo   mongo_repository.Config   `koanf:"mongo"`
-	Elastic elastic_repository.Config `koanf:"elastic"`
+	Mongo   mongo_repository.Config   `koanf:"mongo" validate:"omitempty"`
+	Elastic elastic_repository.Config `koanf:"elastic" validate:"omitempty"`
 }
 
 type RepoFactory struct {

@@ -15,7 +15,7 @@ import (
 
 type Config struct {
 	FilePath  string `koanf:"file_path" validate:"required"`
-	BatchSize int    `koanf:"batch_size" validate:"required,gt=0,defaults=500"`
+	BatchSize int    `koanf:"batch_size" validate:"required,gt=0"`
 }
 
 type Typesense struct {

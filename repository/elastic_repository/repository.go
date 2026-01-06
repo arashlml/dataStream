@@ -11,7 +11,6 @@ import (
 
 	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
-	"github.com/arashlml/data-stream/model"
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
@@ -24,7 +23,7 @@ type ElasticRepository struct {
 	retryInterval float64
 }
 
-func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, config model.ElasticConfig) *ElasticRepository {
+func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, config Config) *ElasticRepository {
 	r := &ElasticRepository{
 		client:        client,
 		logger:        logger,
@@ -105,10 +104,6 @@ func (e *ElasticRepository) Convertor(ctx context.Context, batch *dto.RawCollect
 		buf.WriteByte('\n')
 	}
 	return buf, lastID, nil
-}
-
-func (e *ElasticRepository) Driver() model.Driver {
-	return model.Elastic
 }
 
 func (e *ElasticRepository) BulkUpsert(ctx context.Context, batch *dto.RawCollection) error {

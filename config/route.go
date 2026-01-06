@@ -3,14 +3,10 @@ package config
 import (
 	"fmt"
 
+	"github.com/arashlml/data-stream/factory/iterator_factory"
 	"github.com/arashlml/data-stream/factory/repository_factory"
-	"github.com/arashlml/data-stream/factory/writer"
-	"github.com/arashlml/data-stream/repository/elastic_repository"
-	"github.com/arashlml/data-stream/repository/mongo_repository"
-	"github.com/arashlml/data-stream/repository/typesense_file_repository"
 	"github.com/arashlml/data-stream/service/reader_service"
 	syncservice "github.com/arashlml/data-stream/service/sync_service"
-	"github.com/arashlml/data-stream/service/writer_service"
 	"github.com/arashlml/data-stream/storage"
 	"github.com/go-playground/validator/v10"
 )
@@ -19,8 +15,8 @@ type Config struct {
 	Storage           storage.Config            `koanf:"storage"`
 	SyncService       syncservice.Config        `koanf:"sync-service"`
 	ReadService       reader_service.Config     `koanf:"read-service"`
-	FactoryIterator   iterator_factory.Config   `koanf:"iterator-factory"`
-	FactoryRepository repository_factory.Config `koanf:"factory_repository"`
+	FactoryIterator   iterator_factory.Config   `koanf:"iterator_factory"`
+	FactoryRepository repository_factory.Config `koanf:"repository_factory"`
 }
 
 func (c *Config) ValidateConfig() error {

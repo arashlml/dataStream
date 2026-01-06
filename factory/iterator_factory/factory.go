@@ -11,9 +11,9 @@ import (
 )
 
 type Config struct {
-	Driver        string                           `koanf:"driver" validate:"oneof=typesense-file mongo"`
-	TypesenseFile typesense_file_repository.Config `koanf:"typesense_file"`
-	Mongo         mongo_repository.Config          `koanf:"mongo"`
+	Driver        string                           `koanf:"driver" validate:"oneof=typesense_file mongo"`
+	TypesenseFile typesense_file_repository.Config `koanf:"typesense_file" validate:"omitempty"`
+	Mongo         mongo_repository.Config          `koanf:"mongo" validate:"omitempty"`
 }
 type IteratorFactory struct {
 	driver string
@@ -26,7 +26,7 @@ func Newfactory(logger *slog.Logger, config Config) *IteratorFactory {
 
 func (it *IteratorFactory) NewIterator(config Config) (model.Iterator, error) {
 	switch it.driver {
-	case "typesense-file":
+	case "typesense_file":
 		iterator := typesense_file_repository.New(it.logger, config.TypesenseFile)
 		return iterator, nil
 	case "mongo":

@@ -8,7 +8,6 @@ import (
 
 	"github.com/arashlml/data-stream/dto"
 	"github.com/arashlml/data-stream/metrics"
-	"github.com/arashlml/data-stream/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -26,7 +25,7 @@ type Iterator struct {
 	readTimeout time.Duration
 }
 
-func NewIterator(col *mongo.Collection, logger *slog.Logger, config model.Config) *Iterator {
+func NewIterator(col *mongo.Collection, logger *slog.Logger, config Config) *Iterator {
 	i := &Iterator{
 		col:         col,
 		batchSize:   config.BatchSize,

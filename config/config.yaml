@@ -4,8 +4,8 @@ sync-service:
   bufferSize : 10 # channel size
 read-service:
   resume_capability: true
-factory-iterator:
-  driver:
+iterator_factory:
+  driver: "typesense_file"
   mongo:
     # "mongodb://host.docker.internal:27018"
     uri: "mongodb://localhost:27017"
@@ -22,11 +22,11 @@ factory-iterator:
     connectTimeout: 2
     readTimeout: 2
     idType: "ObjectID"
-  typesense-file:
+  typesense_file:
     file_path: "C:\\Users\\Arash\\Desktop\\mongo\\embedding"
     batch_size: 500
-factory-repository:
-  driver:
+repository_factory:
+  driver: "mongo"
   mongo :
     # "mongodb://host.docker.internal:27018"
     uri: "mongodb://localhost:27017"
