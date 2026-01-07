@@ -44,12 +44,12 @@ func main() {
 
 	store := storage.NewStorage(logger, cfg.Storage)
 
-	it, err := iterator_factory.Newfactory(logger, cfg.FactoryIterator).NewIterator(cfg.FactoryIterator)
+	it, err := iterator_factory.Newfactory(logger, cfg.FactoryIterator, cfg.Mongo, cfg.TypesenseFile).NewIterator(cfg.FactoryIterator)
 	if err != nil {
 		logger.Error("error creating iterator factory: ", err)
 		return
 	}
-	repo, err := repository_factory.NewRepoFactory(logger, cfg.FactoryRepository).NewRepository(cfg.FactoryRepository)
+	repo, err := repository_factory.NewRepoFactory(logger, cfg.FactoryRepository, cfg.Mongo, cfg.Elastic).NewRepository(cfg.FactoryRepository)
 	if err != nil {
 		logger.Error("error creating repository factory: ", err)
 		return

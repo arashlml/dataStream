@@ -6,52 +6,35 @@ read-service:
   resume_capability: true
 iterator_factory:
   driver: "mongo"
-  mongo:
-    # "mongodb://host.docker.internal:27018"
-    uri: "mongodb://localhost:27017"
-    #username: "root"
-    username: ""
-    #password: "39325b03649f3c34013338cb"
-    password: ""
-    #db: "szto-sdp-stg"
-    db: "mydb"
-    collection: "mainProducts"
-    attempts: 5
-    batchSize: 20000
-    pingTimeout: 2
-    connectTimeout: 2
-    readTimeout: 60
-    idType: "String"
-  typesense_file:
-    file_path: "C:\\Users\\Arash\\Desktop\\mongo\\embedding"
-    batch_size: 500
 repository_factory:
   driver: "elastic"
-  mongo :
-    # "mongodb://host.docker.internal:27018"
-    uri: "mongodb://localhost:27017"
-    #username: "root"
-    username: ""
-    #password: "39325b03649f3c34013338cb"
-    password: ""
-    #db: "szto-sdp-stg"
-    db: "mydb"
-    collection: "mainProducts"
-    attempts : 5
-    batchSize : 100000
-    pingTimeout : 2
-    connectTimeout : 2
-    readTimeout: 2
-    idType: "ObjectID"
-
-  elastic:
-    uri: "http://localhost:9200"
-    username: "elastic"
-    #password: "mJquAU0Sa2cgYSyz2bnf"
-    password: ""
-    index: "products"
-    retryAttempts : 1
-    pingTimeout : 5
-    insertTimeout: 60
-    retryInterval: 5
+mongo:
+  # "mongodb://host.docker.internal:27018"
+  uri: "mongodb://localhost:27017"
+  #username: "root"
+  username: ""
+  #password: "39325b03649f3c34013338cb"
+  password: ""
+  #db: "szto-sdp-stg"
+  db: "mydb"
+  collection: "mainProducts"
+  attempts: 5
+  batchSize: 1000
+  pingTimeout: 2
+  connectTimeout: 2
+  readTimeout: 10
+  idType: "String"
+typesense_file:
+  file_path: "C:\\Users\\Arash\\Desktop\\mongo\\embedding"
+  batch_size: 500
+elastic:
+  uri: "http://localhost:9200"
+  username: "elastic"
+  #password: "mJquAU0Sa2cgYSyz2bnf"
+  password: ""
+  index: "products"
+  retryAttempts : 1
+  pingTimeout : 5
+  insertTimeout: 10
+  retryInterval: 5
 

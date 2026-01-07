@@ -23,7 +23,7 @@ type ElasticRepository struct {
 	retryInterval float64
 }
 
-func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, config Config) *ElasticRepository {
+func NewElasticRepository(client *elasticsearch.Client, logger *slog.Logger, config *Config) *ElasticRepository {
 	r := &ElasticRepository{
 		client:        client,
 		logger:        logger,

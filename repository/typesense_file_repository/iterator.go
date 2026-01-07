@@ -28,7 +28,7 @@ type Typesense struct {
 	file      *os.File
 }
 
-func New(logger *slog.Logger, config Config) *Typesense {
+func New(logger *slog.Logger, config *Config) *Typesense {
 	dirs, err := os.ReadDir(config.FilePath)
 	if err != nil {
 		logger.Error("repository.typesense_file_repository.New.ReadDir.error", "error", err)

@@ -33,8 +33,15 @@ type Connector struct {
 	pingTimeout time.Duration
 }
 
-func NewConnector(logger *slog.Logger, config Config) *Connector {
-	return &Connector{uri: config.Uri, username: config.Username, password: config.Password, index: config.Index, logger: logger, pingTimeout: config.PingTimeout}
+func NewConnector(logger *slog.Logger, config *Config) *Connector {
+	return &Connector{
+		uri:         config.Uri,
+		username:    config.Username,
+		password:    config.Password,
+		index:       config.Index,
+		logger:      logger,
+		pingTimeout: config.PingTimeout,
+	}
 }
 
 func (e *Connector) Connect(ctx context.Context) (*elasticsearch.Client, error) {

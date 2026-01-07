@@ -39,7 +39,7 @@ type Connector struct {
 	connectTimeout       time.Duration
 }
 
-func NewConnector(logger *slog.Logger, config Config) *Connector {
+func NewConnector(logger *slog.Logger, config *Config) *Connector {
 	return &Connector{
 		uri:                  config.Uri,
 		username:             config.Username,
