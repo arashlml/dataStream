@@ -27,7 +27,7 @@ func (u *Upsertor) BulkUpsert(ctx context.Context, batch *model.RawCollection) e
 		id, ok := doc["_id"]
 		if !ok {
 			u.logger.Error("repository.mongo.bulk.upsert.no.id.found.in.document")
-			return fmt.Errorf("document missing 'id' field: %v", doc)
+			return fmt.Errorf("document missing 'id'")
 		}
 
 		filter := bson.M{"_id": id}
