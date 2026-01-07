@@ -30,7 +30,7 @@ func NewRepoFactory(logger *slog.Logger, config Config, mongoConfig *mongo_repos
 	}
 }
 
-func (f *RepoFactory) NewRepository(config Config) (model.WriteRepository, error) {
+func (f *RepoFactory) NewRepository() (model.WriteRepository, error) {
 	switch f.driver {
 	case "elastic":
 		client, err := elastic_repository.NewConnector(f.logger, f.ElasticConfig).Connect(context.Background())

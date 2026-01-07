@@ -64,7 +64,7 @@ func (r *Service) Read(ctx context.Context) (*model.Collection, error) {
 	}
 	lastID := collection.RawCollection.LastItemID()
 	r.cursor = collection.Cursor
-	if atomic.LoadInt64(&r.readCounter)%1 == 0 {
+	if atomic.LoadInt64(&r.readCounter)%10_000 == 0 {
 
 		r.logger.Info("read.Service.read.counter",
 			"lastID", lastID,

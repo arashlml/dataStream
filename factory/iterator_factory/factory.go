@@ -24,7 +24,7 @@ func Newfactory(logger *slog.Logger, config Config, mongoConfig *mongo_repositor
 	return &IteratorFactory{driver: config.Driver, TypesenseFileConfig: typesenseFileConfig, MongoConfig: mongoConfig, logger: logger}
 }
 
-func (it *IteratorFactory) NewIterator(config Config) (model.Iterator, error) {
+func (it *IteratorFactory) NewIterator() (model.Iterator, error) {
 	switch it.driver {
 	case "typesense_file":
 		iterator := typesense_file_repository.New(it.logger, it.TypesenseFileConfig)

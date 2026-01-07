@@ -47,7 +47,7 @@ func (s *Service) Write(ctx context.Context, batch *model.Collection) error {
 	}
 	atomic.AddInt64(&s.writeCounter, int64(batch.RawCollection.Len()))
 	metrics.TotalWrittenDocuments.Add(float64(batch.RawCollection.Len()))
-	if atomic.LoadInt64(&s.writeCounter)%1 == 0 {
+	if atomic.LoadInt64(&s.writeCounter)%10_000 == 0 {
 		s.logger.Info("writer.service.write.success",
 			"last.ID", batch.RawCollection.LastItemID(),
 			"witer.Counter", atomic.LoadInt64(&s.writeCounter))

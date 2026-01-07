@@ -66,12 +66,12 @@ func main() {
 func buildRepositories(logger *slog.Logger, cfg config.Config) *repositories {
 	store := storage.NewStorage(logger, cfg.Storage)
 
-	it, err := source_factory.Newfactory(logger, cfg.FactoryIterator, cfg.Mongo, cfg.TypesenseFile).NewIterator(cfg.FactoryIterator)
+	it, err := source_factory.Newfactory(logger, cfg.FactoryIterator, cfg.Mongo, cfg.TypesenseFile).NewIterator()
 	if err != nil {
 		logger.Error("error creating iterator factory: ", err)
 		return nil
 	}
-	repo, err := destination_factory.NewRepoFactory(logger, cfg.FactoryRepository, cfg.Mongo, cfg.Elastic).NewRepository(cfg.FactoryRepository)
+	repo, err := destination_factory.NewRepoFactory(logger, cfg.FactoryRepository, cfg.Mongo, cfg.Elastic).NewRepository()
 	if err != nil {
 		logger.Error("error creating repository factory: ", err)
 		return nil
