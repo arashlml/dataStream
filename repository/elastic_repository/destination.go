@@ -67,7 +67,7 @@ func (e *ElasticRepository) Convertor(ctx context.Context, batch *model.RawColle
 			return buf, lastID, errors.New("ID type assertion failed")
 		}
 
-		delete(newDoc, "_id")
+		delete(newDoc, "id")
 
 		meta := map[string]map[string]interface{}{
 			"index": {
