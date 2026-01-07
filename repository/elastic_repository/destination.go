@@ -58,7 +58,7 @@ func (e *ElasticRepository) Convertor(ctx context.Context, batch *model.RawColle
 		for key, value := range doc {
 			newDoc[key] = value
 		}
-		id, ok := doc["_id"]
+		id, ok := doc["id"]
 		if !ok {
 			e.logger.Error(
 				"elastic.repository.convertor.document.missing_id",

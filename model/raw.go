@@ -19,9 +19,11 @@ func (c RawCollection) LastItemID() string {
 		return ""
 	}
 	lastItemID, hasID := c[len(c)-1]["id"]
-	lastItem_ID, has_ID := c[len(c)-1]["_id"]
-	if hasID && has_ID {
-		switch t := lastItem_ID.(type) {
+
+	lastItemId, hasId := c[len(c)-1]["_id"]
+
+	if hasID && hasId {
+		switch t := lastItemId.(type) {
 		case string:
 			return t
 		case primitive.ObjectID:
@@ -40,8 +42,8 @@ func (c RawCollection) LastItemID() string {
 			return fmt.Sprint("no valid id found")
 		}
 	}
-	if has_ID {
-		switch t := lastItem_ID.(type) {
+	if hasId {
+		switch t := lastItemId.(type) {
 		case string:
 			return t
 		case primitive.ObjectID:
