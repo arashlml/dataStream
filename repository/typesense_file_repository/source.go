@@ -132,6 +132,9 @@ func (t *Typesense) Next(ctx context.Context, cursor model.Cursor) (*model.Colle
 				}
 			}
 			fileIndex++
+			if fileIndex >= len(t.fileNames) {
+				return nil, io.EOF
+			}
 			err := t.UpdateReader(fileIndex)
 			if err != nil {
 				t.logger.Error("repository.typesense_file_repository.UpdateReader.error", "error", err)
