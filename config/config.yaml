@@ -4,6 +4,7 @@ sync-service:
   bufferSize : 10 # channel size
 read-service:
   resume_capability: true
+  #factory is unacceptable name
 iterator_factory:
   driver: "mongo"
 repository_factory:

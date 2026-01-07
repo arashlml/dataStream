@@ -62,6 +62,7 @@ func main() {
 	logger.Info("shutting down the application...")
 }
 
+// TODO : change the iterator and repository
 func buildRepositories(logger *slog.Logger, cfg config.Config) *repositories {
 	store := storage.NewStorage(logger, cfg.Storage)
 
@@ -88,5 +89,9 @@ func buildServices(logger *slog.Logger, cfg config.Config, repos *repositories) 
 	writeService := writer_service.New(repos.store, logger, repos.repository)
 
 	service := syncservice.NewSyncService(readService, writeService, logger, cfg.SyncService)
-	return &services{reader: readService, writer: writeService, syncer: service}
+	return &services{
+		reader: readService,
+		writer: writeService,
+		syncer: service,
+	}
 }

@@ -17,7 +17,7 @@ func (c RawCollection) LastItemID() string {
 	if len(c) == 0 {
 		return ""
 	}
-	if lastItemID, ok := c[len(c)-1]["_id"]; ok {
+	if lastItemID, ok := c[len(c)-1]["id"]; ok {
 		switch t := lastItemID.(type) {
 		case string:
 			return t

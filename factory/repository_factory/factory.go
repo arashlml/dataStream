@@ -11,7 +11,7 @@ import (
 )
 
 type Config struct {
-	Driver string `koanf:"driver" validate:"oneof=elastic mongo"`
+	Driver string `koanf:"driver" validate:"oneof=elastic mongo"` //TODO : make it const
 }
 
 type RepoFactory struct {
