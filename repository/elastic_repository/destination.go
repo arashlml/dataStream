@@ -58,7 +58,7 @@ func (e *ElasticRepository) Convertor(ctx context.Context, batch *model.RawColle
 		for key, value := range doc {
 			newDoc[key] = value
 		}
-		id, ok := doc["id"]
+		id, ok := doc["_id"]
 		if !ok {
 			e.logger.Error(
 				"elastic.repository.convertor.document.missing_id",
@@ -67,7 +67,7 @@ func (e *ElasticRepository) Convertor(ctx context.Context, batch *model.RawColle
 			return buf, lastID, errors.New("ID type assertion failed")
 		}
 
-		delete(newDoc, "id")
+		delete(newDoc, "_id")
 
 		meta := map[string]map[string]interface{}{
 			"index": {
