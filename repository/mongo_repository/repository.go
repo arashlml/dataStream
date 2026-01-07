@@ -31,6 +31,7 @@ func (u *Upsertor) BulkUpsert(ctx context.Context, batch *model.RawCollection) e
 		}
 
 		filter := bson.M{"_id": id}
+
 		update := bson.M{"$set": doc}
 
 		model := mongo.NewUpdateOneModel().

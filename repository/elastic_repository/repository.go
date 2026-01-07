@@ -183,7 +183,6 @@ func (e *ElasticRepository) BulkUpsert(ctx context.Context, batch *model.RawColl
 		}
 
 	}
-	e.logger.Info("error", err)
 	elapsed := time.Since(start)
 	metrics.WriteDuration.Observe(elapsed.Seconds())
 	metrics.TotalWrittenOperations.Add(1)

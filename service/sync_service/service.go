@@ -20,7 +20,7 @@ type Writer interface {
 	Write(ctx context.Context, batch *model.Collection) error
 }
 
-type SyncService struct {
+type Service struct {
 	reader              Reader
 	writer              Writer
 	readCtx             context.Context
@@ -30,8 +30,8 @@ type SyncService struct {
 	backPressureChannel chan *model.Collection
 }
 
-func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, config Config) *SyncService {
-	s := &SyncService{
+func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, config Config) *Service {
+	s := &Service{
 		reader:              reader,
 		writer:              writer,
 		readCtx:             context.Background(),
@@ -42,13 +42,13 @@ func NewSyncService(reader Reader, writer Writer, logger *slog.Logger, config Co
 	}
 	return s
 }
-func (s *SyncService) Start() {
+func (s *Service) Start() {
 	s.wg.Add(2)
 	go s.readLoop(s.readCtx)
 	go s.writeLoop(s.writeCtx)
 }
 
-func (s *SyncService) readLoop(ctx context.Context) {
+func (s *Service) readLoop(ctx context.Context) {
 	defer s.wg.Done()
 	defer close(s.backPressureChannel)
 	for {
@@ -65,7 +65,7 @@ func (s *SyncService) readLoop(ctx context.Context) {
 	}
 }
 
-func (s *SyncService) writeLoop(ctx context.Context) {
+func (s *Service) writeLoop(ctx context.Context) {
 	defer s.wg.Done()
 	for batch := range s.backPressureChannel {
 		lastID := batch.RawCollection.LastItemID()
@@ -80,6 +80,11 @@ func (s *SyncService) writeLoop(ctx context.Context) {
 		}
 	}
 }
-func (s *SyncService) Wait() {
+func (s *Service) Wait() {
 	s.wg.Wait()
+}
+
+func (s *Service) Run() {
+	s.Start()
+	s.Wait()
 }
