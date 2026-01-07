@@ -51,5 +51,5 @@ func (f *RepoFactory) NewRepository(config Config) (model.WriteRepository, error
 		repo := mongo_repository.NewUpsertor(f.logger, col)
 		return repo, nil
 	}
-	return nil, errors.New("factory.repository_factory.driver not supported")
+	return nil, errors.New("driver not supported")
 }
