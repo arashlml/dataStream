@@ -5,9 +5,11 @@ sync-service:
 read-service:
   resume_capability: true
   #factory is unacceptable name
-iterator_factory:
+source:
   driver: "mongo"
-repository_factory:
+  # include_fields
+  # exclude_fields
+destination:
   driver: "elastic"
 mongo:
   # "mongodb://host.docker.internal:27018"

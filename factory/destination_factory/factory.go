@@ -1,4 +1,4 @@
-package repository_factory
+package destination_factory
 
 import (
 	"context"

@@ -64,6 +64,7 @@ func (i *Iterator) Next(ctx context.Context, cursor model.Cursor) (*model.Collec
 			metrics.ErrorCounter.WithLabelValues("mongo_iterator.next.convert_id", err.Error()).Inc()
 			return nil, err
 		}
+		// TODO: add exclude and include fields
 		filter["_id"] = bson.M{"$gt": id}
 	}
 	readCtx, _ := context.WithTimeout(ctx, i.readTimeout*time.Second)
@@ -84,7 +85,7 @@ func (i *Iterator) Next(ctx context.Context, cursor model.Cursor) (*model.Collec
 	}
 	defer i.cursor.Close(readCtx)
 	i.batch = []bson.M{}
-
+	// TODO: add exclude and include fields
 	if err := i.cursor.All(readCtx, &i.batch); err != nil {
 		i.logger.Error("mongo.cursor.all.error",
 			"error", err,

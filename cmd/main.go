@@ -6,15 +6,15 @@ import (
 	"os"
 
 	"github.com/arashlml/data-stream/config"
+	"github.com/arashlml/data-stream/factory/destination_factory"
 	"github.com/arashlml/data-stream/factory/iterator_factory"
-	"github.com/arashlml/data-stream/factory/repository_factory"
 	"github.com/arashlml/data-stream/metrics"
 	"github.com/arashlml/data-stream/model"
-	"github.com/arashlml/data-stream/repository/storage"
 	"github.com/arashlml/data-stream/service/reader_service"
 	"github.com/arashlml/data-stream/service/sync_service"
 	syncservice "github.com/arashlml/data-stream/service/sync_service"
 	"github.com/arashlml/data-stream/service/writer_service"
+	"github.com/arashlml/data-stream/storage"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
@@ -66,12 +66,12 @@ func main() {
 func buildRepositories(logger *slog.Logger, cfg config.Config) *repositories {
 	store := storage.NewStorage(logger, cfg.Storage)
 
-	it, err := iterator_factory.Newfactory(logger, cfg.FactoryIterator, cfg.Mongo, cfg.TypesenseFile).NewIterator(cfg.FactoryIterator)
+	it, err := source_factory.Newfactory(logger, cfg.FactoryIterator, cfg.Mongo, cfg.TypesenseFile).NewIterator(cfg.FactoryIterator)
 	if err != nil {
 		logger.Error("error creating iterator factory: ", err)
 		return nil
 	}
-	repo, err := repository_factory.NewRepoFactory(logger, cfg.FactoryRepository, cfg.Mongo, cfg.Elastic).NewRepository(cfg.FactoryRepository)
+	repo, err := destination_factory.NewRepoFactory(logger, cfg.FactoryRepository, cfg.Mongo, cfg.Elastic).NewRepository(cfg.FactoryRepository)
 	if err != nil {
 		logger.Error("error creating repository factory: ", err)
 		return nil

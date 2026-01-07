@@ -1,4 +1,4 @@
-package iterator_factory
+package source_factory
 
 import (
 	"context"

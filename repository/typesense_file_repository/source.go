@@ -126,6 +126,7 @@ func (t *Typesense) Next(ctx context.Context, cursor model.Cursor) (*model.Colle
 		if err == io.EOF {
 			if len(line) > 0 {
 				var doc map[string]interface{}
+				// TODO: add exclude and include fields
 				if json.Unmarshal([]byte(line), &doc) == nil {
 					documents = append(documents, doc)
 				}
@@ -148,7 +149,7 @@ func (t *Typesense) Next(ctx context.Context, cursor model.Cursor) (*model.Colle
 			lineStart++
 			continue
 		}
-
+		// TODO: add exclude and include fields
 		documents = append(documents, doc)
 		lineStart++
 	}
