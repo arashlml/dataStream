@@ -12,11 +12,11 @@ import (
 type Service struct {
 	writeCounter int64
 	store        Storage
-	repo         model.WriteRepository
+	repo         model.Destination
 	logger       *slog.Logger
 }
 
-func New(store Storage, logger *slog.Logger, repo model.WriteRepository) *Service {
+func New(store Storage, logger *slog.Logger, repo model.Destination) *Service {
 	return &Service{
 		store:  store,
 		logger: logger,

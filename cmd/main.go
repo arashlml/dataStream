@@ -23,8 +23,8 @@ import (
 var K = koanf.New(".")
 
 type repositories struct {
-	it         model.Iterator
-	repository model.WriteRepository
+	it         model.Source
+	repository model.Destination
 	store      *storage.FileStorage
 }
 type services struct {
@@ -62,16 +62,15 @@ func main() {
 	logger.Info("shutting down the application...")
 }
 
-// TODO : change the iterator and repository
 func buildRepositories(logger *slog.Logger, cfg config.Config) *repositories {
 	store := storage.NewStorage(logger, cfg.Storage)
 
-	it, err := source_factory.Newfactory(logger, cfg.FactoryIterator, cfg.Mongo, cfg.TypesenseFile).NewIterator()
+	it, err := source_factory.Newfactory(logger, cfg.FactoryIterator, cfg.Mongo, cfg.TypesenseFile).NewSource()
 	if err != nil {
 		logger.Error("error creating iterator factory: ", err)
 		return nil
 	}
-	repo, err := destination_factory.NewRepoFactory(logger, cfg.FactoryRepository, cfg.Mongo, cfg.Elastic).NewRepository()
+	repo, err := destination_factory.NewRepoFactory(logger, cfg.FactoryRepository, cfg.Mongo, cfg.Elastic).NewDestination()
 	if err != nil {
 		logger.Error("error creating repository factory: ", err)
 		return nil

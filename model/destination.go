@@ -4,6 +4,6 @@ import (
 	"context"
 )
 
-type WriteRepository interface {
+type Destination interface {
 	BulkUpsert(ctx context.Context, batch *RawCollection) error
 }

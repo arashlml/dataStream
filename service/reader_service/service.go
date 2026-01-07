@@ -20,12 +20,12 @@ type Service struct {
 	cursor      model.Cursor
 	readCounter int64
 	store       Storage
-	iterator    model.Iterator
+	iterator    model.Source
 	logger      *slog.Logger
 	resumeCap   bool
 }
 
-func New(store Storage, iterator model.Iterator, logger *slog.Logger, config Config) *Service {
+func New(store Storage, iterator model.Source, logger *slog.Logger, config Config) *Service {
 	r := &Service{
 		store:     store,
 		iterator:  iterator,

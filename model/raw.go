@@ -13,12 +13,35 @@ type Collection struct {
 type Cursor map[string]interface{}
 type RawCollection []map[string]interface{}
 
+// TODO : refactor this shit asap
 func (c RawCollection) LastItemID() string {
 	if len(c) == 0 {
 		return ""
 	}
-	if lastItemID, ok := c[len(c)-1]["id"]; ok {
+	lastItemID, hasID := c[len(c)-1]["id"]
+	lastItem_ID, has_ID := c[len(c)-1]["_id"]
+	if hasID && has_ID {
+		switch t := lastItem_ID.(type) {
+		case string:
+			return t
+		case primitive.ObjectID:
+			return t.Hex()
+		default:
+			return fmt.Sprint("no valid id found")
+		}
+	}
+	if hasID {
 		switch t := lastItemID.(type) {
+		case string:
+			return t
+		case primitive.ObjectID:
+			return t.Hex()
+		default:
+			return fmt.Sprint("no valid id found")
+		}
+	}
+	if has_ID {
+		switch t := lastItem_ID.(type) {
 		case string:
 			return t
 		case primitive.ObjectID:

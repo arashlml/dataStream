@@ -14,15 +14,15 @@ type Config struct {
 	Driver string `koanf:"driver" validate:"oneof=elastic mongo"` //TODO : make it const
 }
 
-type RepoFactory struct {
+type DestinationFactory struct {
 	logger        *slog.Logger
 	MongoConfig   *mongo_repository.Config
 	ElasticConfig *elastic_repository.Config
 	driver        string
 }
 
-func NewRepoFactory(logger *slog.Logger, config Config, mongoConfig *mongo_repository.Config, elasticConfig *elastic_repository.Config) *RepoFactory {
-	return &RepoFactory{
+func NewRepoFactory(logger *slog.Logger, config Config, mongoConfig *mongo_repository.Config, elasticConfig *elastic_repository.Config) *DestinationFactory {
+	return &DestinationFactory{
 		logger:        logger,
 		MongoConfig:   mongoConfig,
 		ElasticConfig: elasticConfig,
@@ -30,7 +30,7 @@ func NewRepoFactory(logger *slog.Logger, config Config, mongoConfig *mongo_repos
 	}
 }
 
-func (f *RepoFactory) NewRepository() (model.WriteRepository, error) {
+func (f *DestinationFactory) NewDestination() (model.Destination, error) {
 	switch f.driver {
 	case "elastic":
 		client, err := elastic_repository.NewConnector(f.logger, f.ElasticConfig).Connect(context.Background())
