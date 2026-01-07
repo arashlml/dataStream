@@ -29,7 +29,7 @@ func (u *Upsertor) BulkUpsert(ctx context.Context, batch *model.RawCollection) e
 			u.logger.Error("repository.mongo.bulk.upsert.no.id.found.in.document")
 			return fmt.Errorf("document missing 'id'")
 		}
-
+		delete(doc, "id")
 		filter := bson.M{"_id": id}
 
 		update := bson.M{"$set": doc}
