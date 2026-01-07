@@ -16,8 +16,8 @@ import (
 
 type Config struct {
 	Storage           storage.Config                    `koanf:"storage"`
-	SyncService       syncservice.Config                `koanf:"sync-service"`
-	ReadService       reader_service.Config             `koanf:"read-service"`
+	SyncService       syncservice.Config                `koanf:"sync_service"`
+	ReadService       reader_service.Config             `koanf:"read_service"`
 	TypesenseFile     *typesense_file_repository.Config `koanf:"typesense_file" validate:"omitempty"`
 	Mongo             *mongo_repository.Config          `koanf:"mongo" validate:"omitempty"`
 	Elastic           *elastic_repository.Config        `koanf:"elastic" validate:"omitempty"`

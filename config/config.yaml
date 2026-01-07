@@ -1,8 +1,8 @@
 storage:
   filePath: "last_cursor.csv"
-sync-service:
+sync_service:
   bufferSize : 10 # channel size
-read-service:
+read_service:
   resume_capability: true
   #factory is unacceptable name
 source:
