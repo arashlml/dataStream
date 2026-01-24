@@ -24,15 +24,19 @@ func (u *Upsertor) BulkUpsert(ctx context.Context, batch *model.RawCollection) e
 	models := make([]mongo.WriteModel, 0, batch.Len())
 
 	for _, doc := range batch.Raw() {
-		id, ok := doc["id"]
+		id, ok := doc["_id"]
 		if !ok {
 			u.logger.Error("repository.mongo.bulk.upsert.no.id.found.in.document")
 			return fmt.Errorf("document missing 'id'")
 		}
-		delete(doc, "id")
+		document := make(map[string]interface{})
+		for key, value := range doc {
+			document[key] = value
+		}
+		delete(document, "_id")
 		filter := bson.M{"_id": id}
 
-		update := bson.M{"$set": doc}
+		update := bson.M{"$set": document}
 
 		model := mongo.NewUpdateOneModel().
 			SetFilter(filter).

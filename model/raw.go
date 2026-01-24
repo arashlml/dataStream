@@ -1,8 +1,6 @@
 package model
 
 import (
-	"fmt"
-
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -13,11 +11,26 @@ type Collection struct {
 type Cursor map[string]interface{}
 type RawCollection []map[string]interface{}
 
+func (c RawCollection) Map(mapping map[string]string) {
+	if mapping == nil {
+		return
+	}
+	for _, raw := range c {
+		for key, value := range mapping {
+			if rawValue, ok := raw[key]; ok {
+				raw[value] = rawValue
+				delete(raw, key)
+			}
+		}
+	}
+}
+
 // TODO : refactor this shit asap
 func (c RawCollection) LastItemID() string {
 	if len(c) == 0 {
 		return ""
 	}
+
 	lastItemID, hasID := c[len(c)-1]["id"]
 
 	lastItemId, hasId := c[len(c)-1]["_id"]
@@ -29,7 +42,7 @@ func (c RawCollection) LastItemID() string {
 		case primitive.ObjectID:
 			return t.Hex()
 		default:
-			return fmt.Sprint("no valid id found")
+			return "no valid id found"
 		}
 	}
 	if hasID {
@@ -39,7 +52,7 @@ func (c RawCollection) LastItemID() string {
 		case primitive.ObjectID:
 			return t.Hex()
 		default:
-			return fmt.Sprint("no valid id found")
+			return "no valid id found"
 		}
 	}
 	if hasId {
@@ -49,7 +62,7 @@ func (c RawCollection) LastItemID() string {
 		case primitive.ObjectID:
 			return t.Hex()
 		default:
-			return fmt.Sprint("no valid id found")
+			return "no valid id found"
 		}
 	}
 	return "no id found"

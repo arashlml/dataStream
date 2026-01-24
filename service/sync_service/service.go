@@ -53,7 +53,7 @@ func (s *Service) readLoop(ctx context.Context) {
 	defer close(s.backPressureChannel)
 	for {
 		batch, err := s.reader.Read(ctx)
-		if batch == nil && err == nil {
+		if batch == nil {
 			s.logger.Info("sync.service.empty.batch")
 			return
 		}
@@ -67,16 +67,19 @@ func (s *Service) readLoop(ctx context.Context) {
 
 func (s *Service) writeLoop(ctx context.Context) {
 	defer s.wg.Done()
+	var lastID string
 	for batch := range s.backPressureChannel {
-		lastID := batch.RawCollection.LastItemID()
-		err := s.writer.Write(ctx, batch)
-		if err != nil {
-			s.logger.Error(
-				"service.writeLoop.bulkInsertError",
-				"error", err,
-				"_id", lastID,
-			)
-			metrics.ErrorCounter.WithLabelValues("sync_service.write_loop.write_failed", err.Error()).Inc()
+		if batch != nil {
+			lastID = batch.RawCollection.LastItemID()
+			err := s.writer.Write(ctx, batch)
+			if err != nil {
+				s.logger.Error(
+					"service.writeLoop.bulkInsertError",
+					"error", err,
+					"_id", lastID,
+				)
+				metrics.ErrorCounter.WithLabelValues("sync_service.write_loop.write_failed", err.Error()).Inc()
+			}
 		}
 	}
 }

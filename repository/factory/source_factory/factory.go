@@ -20,7 +20,7 @@ type SourceFactory struct {
 	logger              *slog.Logger
 }
 
-func Newfactory(logger *slog.Logger, config Config, mongoConfig *mongo_repository.Config, typesenseFileConfig *typesense_file_repository.Config) *SourceFactory {
+func NewFactory(logger *slog.Logger, config Config, mongoConfig *mongo_repository.Config, typesenseFileConfig *typesense_file_repository.Config) *SourceFactory {
 	return &SourceFactory{
 		driver:              config.Driver,
 		TypesenseFileConfig: typesenseFileConfig,
@@ -37,7 +37,7 @@ func (it *SourceFactory) NewSource() (model.Source, error) {
 	case "mongo":
 		col, err := mongo_repository.NewConnector(it.logger, it.MongoConfig).ConnectAndMakeCollection(context.Background())
 		if err != nil {
-			it.logger.Error("factory.iterator_factory.new.iterator.mongo.error",
+			it.logger.Error("factory.source_factory.new.iterator.mongo.error",
 				"error", err)
 			return nil, err
 		}

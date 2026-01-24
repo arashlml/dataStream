@@ -5,9 +5,7 @@ sync_service:
 read_service:
   resume_capability: true
 source:
-  driver: "mongo"
-  # include_fields
-  # exclude_fields
+  driver: "typesense_file"
 destination:
   driver: "elastic"
 mongo:
@@ -26,9 +24,15 @@ mongo:
   connectTimeout: 2
   readTimeout: 10
   idType: "String"
+  include_fields:
+  exclude_fields:
+  mapping
 typesense_file:
   file_path: "C:\\Users\\Arash\\Desktop\\mongo\\embedding"
   batch_size: 500
+  include_fields:
+  exclude_fields:
+  mapping: 
 elastic:
   uri: "http://localhost:9200"
   username: "elastic"

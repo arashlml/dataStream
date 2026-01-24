@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -14,18 +15,24 @@ import (
 )
 
 type Config struct {
-	FilePath  string `koanf:"file_path" validate:"required"`
-	BatchSize int    `koanf:"batch_size" validate:"required,gt=0"`
+	FilePath      string            `koanf:"file_path" validate:"required"`
+	BatchSize     int               `koanf:"batch_size" validate:"required,gt=0"`
+	IncludeFields []string          `koanf: "include_fields" validate:"omitempty"`
+	ExcludeFileds []string          `koanf: "exclude_fields validate:"omitempty"`
+	Mapping       map[string]string `koanf: "mapping" validate:"omitempty"`
 }
 
 type Typesense struct {
-	filePath  string
-	fileNames []string
-	logger    *slog.Logger
-	batchSize int
-	cursor    map[string]interface{}
-	reader    *bufio.Reader
-	file      *os.File
+	filePath      string
+	fileNames     []string
+	logger        *slog.Logger
+	batchSize     int
+	cursor        map[string]interface{}
+	reader        *bufio.Reader
+	file          *os.File
+	includeFields []string
+	excludeFields []string
+	mapping       map[string]string
 }
 
 func New(logger *slog.Logger, config *Config) *Typesense {
@@ -44,10 +51,13 @@ func New(logger *slog.Logger, config *Config) *Typesense {
 	sort.Strings(files)
 
 	return &Typesense{
-		filePath:  config.FilePath,
-		fileNames: files,
-		logger:    logger,
-		batchSize: config.BatchSize,
+		filePath:      config.FilePath,
+		fileNames:     files,
+		logger:        logger,
+		batchSize:     config.BatchSize,
+		includeFields: config.IncludeFields,
+		excludeFields: config.ExcludeFileds,
+		mapping:       config.Mapping,
 	}
 }
 func (t *Typesense) ConvertType() {
@@ -70,6 +80,10 @@ func (t *Typesense) HasNext(ctx context.Context) bool {
 	return fileIndex < len(t.fileNames)
 }
 func (t *Typesense) UpdateReader(fileIndex int) error {
+	if fileIndex >= len(t.fileNames) {
+		t.logger.Error("repository.typesense_file_repository.UpdateReader.last.file")
+		return io.EOF
+	}
 	filePath := filepath.Join(t.filePath, t.fileNames[fileIndex])
 	var err error
 	t.file, err = os.Open(filePath)
@@ -87,6 +101,33 @@ func (t *Typesense) CloseFile() {
 	}
 }
 
+func (t *Typesense) include(doc map[string]interface{}) (map[string]interface{}, error) {
+	document := make(map[string]interface{})
+	if t.includeFields != nil {
+		for _, feild := range t.includeFields {
+			value, ok := doc[feild]
+			if ok {
+				document[feild] = value
+			} else {
+				return nil, errors.New("include feild not found")
+			}
+
+		}
+	} else {
+		for key, value := range doc {
+			document[key] = value
+		}
+	}
+	return document, nil
+}
+func (t *Typesense) exclude(doc map[string]interface{}) map[string]interface{} {
+	if t.excludeFields != nil {
+		for _, field := range t.excludeFields {
+			delete(doc, field)
+		}
+	}
+	return doc
+}
 func (t *Typesense) Next(ctx context.Context, cursor model.Cursor) (*model.Collection, error) {
 	t.cursor = cursor
 	if cursor != nil {
@@ -98,12 +139,9 @@ func (t *Typesense) Next(ctx context.Context, cursor model.Cursor) (*model.Colle
 	fileIndex := cursor["fileIndex"].(int)
 	lineStart := cursor["start"].(int)
 
-	if fileIndex >= len(t.fileNames) {
-		return nil, io.EOF
-	}
 	err := t.UpdateReader(fileIndex)
 	if err != nil {
-		t.logger.Error("repository.typesense_file_repository.UpdateReader.error", "err", err)
+		t.logger.Error("repository.typesense_file_repository.Next.UpdateReader.error", "err", err)
 
 		return nil, err
 	}
@@ -126,42 +164,48 @@ func (t *Typesense) Next(ctx context.Context, cursor model.Cursor) (*model.Colle
 		if err == io.EOF {
 			if len(line) > 0 {
 				var doc map[string]interface{}
-				// TODO: add exclude and include fields
 				if json.Unmarshal([]byte(line), &doc) == nil {
-					documents = append(documents, doc)
+					document, err := t.include(doc)
+					if err != nil {
+						t.logger.Error("repository.typesense_file_repository.Next.error", "error: ", err)
+					}
+					document = t.exclude(document)
+
+					documents = append(documents, document)
 				}
 			}
 			fileIndex++
-			if fileIndex >= len(t.fileNames) {
-				return nil, io.EOF
-			}
 			err := t.UpdateReader(fileIndex)
 			if err != nil {
-				t.logger.Error("repository.typesense_file_repository.UpdateReader.error", "error", err)
+				t.logger.Error("repository.typesense_file_repository.Next.UpdateReader.error", "error", err)
 				return nil, err
 			}
 			lineStart = 0
 		}
 		if err != nil && err != io.EOF {
-			t.logger.Error("repository.typesense_file_repository.ReadString.error", "err", err)
+			t.logger.Error("repository.typesense_file_repository.Next.ReadString.error", "err", err)
 			return nil, err
 		}
 
 		var doc map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &doc); err != nil {
-			lineStart++
-			continue
-		}
-		// TODO: add exclude and include fields
-		documents = append(documents, doc)
-		lineStart++
-	}
+		if json.Unmarshal([]byte(line), &doc) == nil {
+			document, err := t.include(doc)
+			if err != nil {
+				t.logger.Error("repository.typesense_file_repository.Next.error", "error: ", err)
+			}
+			document = t.exclude(document)
 
+			documents = append(documents, document)
+			lineStart++
+		}
+	}
 	cursor["fileIndex"] = fileIndex
 	cursor["start"] = lineStart
 	t.cursor = cursor
-	return &model.Collection{
+	collection := model.Collection{
 		RawCollection: documents,
 		Cursor:        cursor,
-	}, nil
+	}
+	collection.RawCollection.Map(t.mapping)
+	return &collection, nil
 }

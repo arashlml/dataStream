@@ -50,7 +50,7 @@ func (s *Service) Write(ctx context.Context, batch *model.Collection) error {
 	if atomic.LoadInt64(&s.writeCounter)%10_000 == 0 {
 		s.logger.Info("writer.service.write.success",
 			"last.ID", batch.RawCollection.LastItemID(),
-			"witer.Counter", atomic.LoadInt64(&s.writeCounter))
+			"writer.Counter", atomic.LoadInt64(&s.writeCounter))
 	}
 	return nil
 }

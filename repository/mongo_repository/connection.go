@@ -12,18 +12,21 @@ import (
 )
 
 type Config struct {
-	Uri                  string        `koanf:"uri" validate:"required,uri"`
-	Username             string        `koanf:"username"`
-	Password             string        `koanf:"password"`
-	Db                   string        `koanf:"db" validate:"required"`
-	Collection           string        `koanf:"collection" validate:"required"`
-	Attempts             int           `koanf:"attempts" validate:"gte=0"`
-	BatchSize            int64         `koanf:"batchSize" validate:"gt=0"`
-	PingTimeout          time.Duration `koanf:"pingTimeout" validate:"gte=0"`
-	CountDocQueryTimeout time.Duration `koanf:"countDocTimeout" validate:"gte=0"`
-	ConnectTimeout       time.Duration `koanf:"connectTimeout" validate:"gte=0"`
-	ReadTimeout          time.Duration `koanf:"readTimeout" validate:"gte=0"`
-	IDType               string        `koanf:"idType" validate:"required,oneof=ObjectID String"`
+	Uri                  string            `koanf:"uri" validate:"required,uri"`
+	Username             string            `koanf:"username"`
+	Password             string            `koanf:"password"`
+	Db                   string            `koanf:"db" validate:"required"`
+	Collection           string            `koanf:"collection" validate:"required"`
+	Attempts             int               `koanf:"attempts" validate:"gte=0"`
+	BatchSize            int64             `koanf:"batchSize" validate:"gt=0"`
+	PingTimeout          time.Duration     `koanf:"pingTimeout" validate:"gte=0"`
+	CountDocQueryTimeout time.Duration     `koanf:"countDocTimeout" validate:"gte=0"`
+	ConnectTimeout       time.Duration     `koanf:"connectTimeout" validate:"gte=0"`
+	ReadTimeout          time.Duration     `koanf:"readTimeout" validate:"gte=0"`
+	IDType               string            `koanf:"idType" validate:"required,oneof=ObjectID String"`
+	IncludeFields        []string          `koanf: "include_field" validate:"omitempty"`
+	ExcludeFileds        []string          `koanf: "exclude_field" validate:"omitempty"`
+	Mapping              map[string]string `koanf: "mapping" validate:"omitempty"`
 }
 
 type Connector struct {

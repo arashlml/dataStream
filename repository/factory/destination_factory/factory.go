@@ -21,7 +21,7 @@ type DestinationFactory struct {
 	driver        string
 }
 
-func NewRepoFactory(logger *slog.Logger, config Config, mongoConfig *mongo_repository.Config, elasticConfig *elastic_repository.Config) *DestinationFactory {
+func NewFactory(logger *slog.Logger, config Config, mongoConfig *mongo_repository.Config, elasticConfig *elastic_repository.Config) *DestinationFactory {
 	return &DestinationFactory{
 		logger:        logger,
 		MongoConfig:   mongoConfig,
