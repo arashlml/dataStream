@@ -20,3 +20,7 @@
 # vendor/
 
 mongo-data/
+last_inserted_id.csv
+@gemini.md
+benchmark.csv
+last_cursor.csv
