@@ -8,11 +8,8 @@ service:
 mongo :
   # "mongodb://host.docker.internal:27018"
   uri: "mongodb://mongodb:27017"
-  #username: "root"
   username: ""
-  #password: "39325b03649f3c34013338cb"
   password: ""
-  #db: "szto-sdp-stg"
   db: "mydb"
   collection: "users"
   attempts : 5
@@ -23,8 +20,7 @@ mongo :
   idType: "ObjectID"
 elastic:
   uri: "http://elastic:9200"
-  username: "elastic"
-  #password: "mJquAU0Sa2cgYSyz2bnf"
+  username: ""
   password: ""
   index: "users"
   attempts : 5
